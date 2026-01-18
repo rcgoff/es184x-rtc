@@ -1,0 +1,20 @@
+src\i2cbcki.obj: src\i2cback.asm
+    masm /Dinvert src\i2cback,src\i2cbcki,src\i2cbcki;
+
+src\i2cfront.obj: src\i2cfront.asm
+    masm src\i2cfront,src\i2cfront,src\i2cfront;
+
+src\bcd.obj: src\bcd.asm
+    masm src\bcd,src\bcd,src\bcd;
+
+src\argc.obj: src\argc.asm src\dump.inc
+   masm /Isrc src\argc,src\argc,src\argc;
+
+src\ds1307.obj: src\ds1307.asm
+    masm src\ds1307,src\ds1307,src\ds1307;
+
+ds1307i.com: src\ds1307.obj src\bcd.obj src\i2cfront.obj src\i2cbcki.obj \
+src\argc.obj
+    link src\ds1307 src\bcd src\i2cfront src\i2cbcki src\argc,ds1307i,con;
+    exe2bin ds1307i
+    command /c 2com ds1307i

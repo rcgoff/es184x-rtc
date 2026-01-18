@@ -1,0 +1,175 @@
+                             C  include dump.inc 
+ = 000D                      C  cr       equ  0dh 
+ = 000A                      C  lf       equ  0ah 
+ = 0009                      C  tab      equ  09h 
+ = 0020                      C  blank    equ  20h      ;space code 
+                             C   
+ = 0080                      C  cmd      equ   80h     ;command line tail 
+                             C   
+ = 0010                      C  blksize  equ   16      ;input file buffer size 
+                             C   
+ = 0000                      C  stdin    equ   0 
+ = 0001                      C  stdout   equ   1 
+ = 0002                      C  stderr   equ   2 
+                                 
+                                 
+                                assume cs:_TEXT 
+ 0000                           _TEXT segment word public 'CODE' 
+                                 
+                                public	argc 
+ 0000                           argc   proc    near 
+                                ;command line argument count 
+                                ;on call, ES:BX	points to command line 
+                                ;on return, AX = arguments count 
+                                 
+ 0000  53                              push bx 
+ 0001  51                              push cx 
+ 0002  B8 0001                         mov  ax,1      ;reset arguments count 
+                                 
+ 0005  B9 FFFF                  argc1: mov  cx,-1     ;set flag=external argument (CX=0	internal, FF-ext) 
+                                 
+ 0008  43                       argc2: inc  bx	      ;point to	the next symbol 
+ 0009  26: 80 3F 0D                    cmp  byte ptr es:[bx],cr	;why not a line	command????? 
+ 000D  74 13                           je   argc3     ;stop if it's the	CR code 
+ 000F  26: 80 3F 20                    cmp  byte ptr es:[bx],blank 
+ 0013  74 F0                           je   argc1     ;external	argument if SPACEBAR code 
+ 0015  26: 80 3F 09                    cmp  byte ptr es:[bx],tab 
+ 0019  74 EA                           je   argc1     ;external	argument if TAB 
+                                 
+                                		      ;processing if not (SPACEBAR or TAB) 
+ 001B  E3 EB                           jcxz argc2     ;jump back if it's an internal argument 
+                                 
+ 001D  40                              inc  ax	      ;inc if argument not found 
+ 001E  F7 D1                           not  cx	      ;set flag	to 'internal argument'... 
+ 0020  EB E6                           jmp  argc2     ;...and proceed the next symbol 
+                                 
+ 0022  59                       argc3: pop  cx 
+ 0023  5B                              pop  bx	      ;restore used registers 
+ 0024  C3                              ret	      ;return AX=arguments count 
+                                 
+                                argc   endp 
+                                 
+                                public argv 
+ 0025                           argv	proc	near 
+                                			;get address and length of command line attributes 
+                                			;on call, ES:BX = command line 
+                                			;	  AX = argument number 
+                                			;on return, ES:BX = address 
+                                			;	    AX = length 
+ 0025  51                       	push	cx 
+ 0026  57                       	push	di 
+ 0027  0B C0                    	or	ax,ax	;is is 0th argument? 
+ 0029  74 44                    	jz	argv8	;yes - go to geting program name 
+ 002B  32 E4                    	xor	ah,ah	;arg counter setup 
+                                 
+ 002D  B9 FFFF                  argv1:	mov	cx,-1	;set flag to 'outside the argument' 
+ 0030  43                       argv2:	inc	bx	;next cmdline symbol 
+ 0031  26: 80 3F 0D             	cmp	byte ptr es:[bx],cr 
+ 0035  74 33                    	je	argv7	;termnate if cr found 
+ 0037  26: 80 3F 20             	cmp	byte ptr es:[bx],blank 
+ 003B  74 F0                    	je	argv1	;set to outside the argument if space 
+ 003D  26: 80 3F 09             	cmp	byte ptr es:[bx],tab 
+ 0041  74 EA                    	je	argv1	;set to outside the argument if tab 
+                                 
+                                			;processing all other symbols 
+ 0043  E3 EB                    	jcxz	argv2	;continue scan if inside the argument 
+ 0045  FE C4                    	inc	ah	;otherwise update argument count 
+ 0047  3A E0                    	cmp	ah,al	;is it desirable argument? 
+ 0049  74 04                    	je	argv4	;yes - count its length 
+ 004B  F7 D1                    	not	cx	;no - set flag to 'inside argument'... 
+ 004D  EB E1                    	jmp	argv2	;...and continue scan 
+                                 
+ 004F                           argv4:			;determine argument length 
+ 004F  8B C3                    	mov	ax,bx	;save start address 
+ 0051  43                       argv5:	inc	bx	;next symbol 
+ 0052  26: 80 3F 0D             	cmp	byte ptr es:[bx],cr 
+ 0056  74 0C                    	je	argv6	;end reached if we encounter with cr... 
+ 0058  26: 80 3F 20             	cmp	byte ptr es:[bx],blank 
+ 005C  74 06                    	je	argv6	;...or space... 
+ 005E  26: 80 3F 09             	cmp	byte ptr es:[bx],tab 
+ 0062  75 ED                    	jne	argv5	;...or tab, else - continue search 
+                                 
+ 0064  93                       argv6:	xchg	bx,ax	;set ES:BX to the beginning of arg 
+ 0065  2B C3                    	sub	ax,bx	;and AX=length of arg 
+ 0067  EB 2D 90                 	jmp	argvx	;common exit 
+                                 
+ 006A  33 C0                    argv7:	xor	ax,ax	;AX=0 if argument not found 
+ 006C  EB 28 90                 	jmp	argvx	;common exit 
+                                 
+ 006F                           argv8:			;special case if argument=0 on call 
+ 006F  B8 3000                  	mov	ax,3000h;is it dos v3 or higher? 
+ 0072  CD 21                    	int	21h	;(al will be 0 if dos v1) 
+ 0074  3C 03                    	cmp	al,3 
+ 0076  72 F2                    	jb	argv7	;exit w AX=0 if dos <3.0 
+ 0078  26: 8E 06 002C           	mov	es,es:[2ch]	;get environment from PSP 
+ 007D  33 FF                    	xor	di,di 
+ 007F  32 C0                    	xor	al,al 
+ 0081  FC                       	cld 
+ 0082  F2/ AE                   argv9:	repne scasb	;find prog.name as first '00' after all env. variables 
+ 0084  AE                       	scasb		;should be TWO zeroes (no scasw as can be odd addr) 
+ 0085  75 FB                    	jne	argv9	;continue loop if only one zero 
+ 0087  83 C7 02                 	add	di,2	;skip word count 
+ 008A  8B DF                    	mov	bx,di	;save program name address 
+ 008C  B9 FFFF                  	mov	cx,-1	;now determine progam name length... 
+ 008F  F2/ AE                   	repne scasb	;...by searcing the next zero byte 
+ 0091  F7 D1                    	not	cx	;get lengtn (rep counts downwards) 
+ 0093  49                       	dec	cx 
+ 0094  8B C1                    	mov	ax,cx	;return length in ax 
+                                 
+ 0096                           argvx:			;common exit 
+ 0096  5F                       	pop	di 
+ 0097  59                       	pop	cx 
+ 0098  C3                       	ret 
+                                 
+                                argv	endp 
+ 0099                           _TEXT ends 
+                                 
+                                end 
+Segments and Groups:
+
+                N a m e         	Size	Align	Combine Class
+
+_TEXT  . . . . . . . . . . . . .  	0099	WORD	PUBLIC	'CODE'
+
+Symbols:            
+
+                N a m e         	Type	Value	Attr         
+
+ARGC . . . . . . . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0025
+ARGC1  . . . . . . . . . . . . .  	L NEAR	0005	_TEXT
+ARGC2  . . . . . . . . . . . . .  	L NEAR	0008	_TEXT
+ARGC3  . . . . . . . . . . . . .  	L NEAR	0022	_TEXT
+ARGV . . . . . . . . . . . . . .  	N PROC	0025	_TEXT	Global	Length = 0074
+ARGV1  . . . . . . . . . . . . .  	L NEAR	002D	_TEXT
+ARGV2  . . . . . . . . . . . . .  	L NEAR	0030	_TEXT
+ARGV4  . . . . . . . . . . . . .  	L NEAR	004F	_TEXT
+ARGV5  . . . . . . . . . . . . .  	L NEAR	0051	_TEXT
+ARGV6  . . . . . . . . . . . . .  	L NEAR	0064	_TEXT
+ARGV7  . . . . . . . . . . . . .  	L NEAR	006A	_TEXT
+ARGV8  . . . . . . . . . . . . .  	L NEAR	006F	_TEXT
+ARGV9  . . . . . . . . . . . . .  	L NEAR	0082	_TEXT
+ARGVX  . . . . . . . . . . . . .  	L NEAR	0096	_TEXT
+
+BLANK  . . . . . . . . . . . . .  	Number	0020	
+BLKSIZE  . . . . . . . . . . . .  	Number	0010	
+
+CMD  . . . . . . . . . . . . . .  	Number	0080	
+CR . . . . . . . . . . . . . . .  	Number	000D	
+
+LF . . . . . . . . . . . . . . .  	Number	000A	
+
+STDERR . . . . . . . . . . . . .  	Number	0002	
+STDIN  . . . . . . . . . . . . .  	Number	0000	
+STDOUT . . . . . . . . . . . . .  	Number	0001	
+
+TAB  . . . . . . . . . . . . . .  	Number	0009	
+
+
+    126 Source  Lines
+    127 Total   Lines
+     46 Symbols
+
+  49328 Bytes symbol space free
+
+      0 Warning Errors
+      0 Severe  Errors
