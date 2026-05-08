@@ -4,31 +4,29 @@
 ;  enable inversion with MASM 3
 ;i2c bus routines
 ;i2c device is connected to 8255 as follows:
-;8255 port b (61h) bit 2 - z-state control of pin 4, 1=z
+;8255 port b (61h) bit 2 - SDA out
 ;8255 port b (61h) bit 3 - SCL
-;8255 port b (61h) bit 4 - SDA out
 ;8255 port c (62h) bit 4 - SDA in
 ;2k7 pull-up to SDA
-;hardware is overkilled, it's no need to use 2 pins
-;(pin2 and pin4) of port b. It would be ok to put pin 4
-;always to 0, and then use pin 2 as data output.
-;such a configuration can also be used with OC gate or just a
-;transistor tied to pin 2 (but with inversion, current circuit
-;don't reqires it).
 
-;L.Yadrennikov june, august 2025
+;for 8255 chip, SDA out can be tied directly to I2C device.
+;for 82c55 chip, with its strong "1" output current,
+;I2C device must be connected via OC gate or just a
+;transistor tied to port B bit 2 (and inversion must be used!)
+
+;L.Yadrennikov june, august 2025, may 2026
 
 public i2cwr
 public i2crd
 public i2c_stopreset
 
-port_b       equ 61h
-port_c       equ 62h
-z_position   equ 2
-sda_position equ 4
-z_mask       equ 1 SHL z_position
-sda_mask     equ 1 SHL sda_position
-scl_mask     equ 00001000b
+port_b           equ 61h
+port_c           equ 62h
+sda_out_position equ 2
+sda_in_position  equ 4
+sda_out_mask     equ 1 SHL sda_out_position
+sda_in_mask      equ 1 SHL sda_in_position
+scl_mask         equ 00001000b
 
 SCL_HI macro             ;raise SCL
        or  al,scl_mask
@@ -42,18 +40,18 @@ SCL_LO macro             ;fall SCL
 
 SDA_HI macro             ;raise SDA
 ifdef invert
-       and al,not z_mask
+       and al,not sda_out_mask
 else
-       or  al,z_mask
+       or  al,sda_out_mask
 endif
        out dx,al
        endm
 
 SDA_LO macro             ;fall SDA
 ifdef invert
-       or  al,z_mask
+       or  al,sda_out_mask
 else
-       and al,not z_mask
+       and al,not sda_out_mask
 endif
        out dx,al
        endm
@@ -86,7 +84,6 @@ i2c_stopreset proc near
        mov dx,port_b
        in al,dx
        jc stopgen
-       and al,not sda_mask
        SCL_LO
        SDA_HI
        mov cx,9
@@ -95,7 +92,6 @@ scloop:
        SCL_LO
        loop scloop
 stopgen:
-       and al,not sda_mask
        I2C_STOP
        pop dx
        pop cx
@@ -120,10 +116,10 @@ i2cwr proc near
        pushf
        mov dx,port_b
        in  al,dx
-       and al,not (z_mask or scl_mask or sda_mask)
+       and al,not (sda_out_mask or scl_mask)
        mov bl,al         ;save previous port with 0s at i2c pins
 
-       mov cl,z_position
+       mov cl,sda_out_position
 ifdef invert
        not ah
 endif
@@ -135,29 +131,28 @@ endif
 ifdef invert
        or  al, scl_mask
 else
-       or  al, (scl_mask or z_mask)
+       or  al, (scl_mask or sda_out_mask)
 endif
        out dx,al         ;out idle state on i2c
        I2C_START
 i2cwr_loop:
        rol ah,1
-       mov al,z_mask
+       mov al,sda_out_mask
        and al,ah         ;select proper bit
        or  al,bl         ;put proper DATA bit
        out dx,al         ;keep SCL low, out DATA
        SCL_HI
        SCL_LO
        loop i2cwr_loop
-       or  al,z_mask     ;put SDA pin high regardless of inversion settings
+       or  al,sda_out_mask     ;put SDA pin high regardless of inversion settings
        out dx,al
        SCL_HI
        in  al,port_c     ;read acknowlege bit
        mov ah,al
        in  al,dx         ;restore port values
        SCL_LO
-;       I2C_STOP
        clc
-       and ah,sda_mask
+       and ah,sda_in_mask
        jz  wrexit
        stc               ;error if Ack<>0
 wrexit:
@@ -185,9 +180,9 @@ i2crd proc near
 ifdef invert
        and ax,00ffh and not scl_mask
 else
-       and ax,00ffh and not (z_mask or scl_mask or sda_mask)
+       and ax,00ffh and not (sda_out_mask or scl_mask)
 endif
-       mov bl,sda_mask
+       mov bl,sda_in_mask
        mov cx,8          ;amount of bits to read
 i2crd_loop:
        rol ah,1
@@ -205,7 +200,7 @@ i2crd_loop:
 rd_finshift:
        SCL_HI            ;9th clock in both cases (ack vs no ack)
        SCL_LO
-       mov cl,sda_position
+       mov cl,sda_in_position
        rol ah,cl         ;now the highest bit from device
                          ;is in proper position
 rdexit:
