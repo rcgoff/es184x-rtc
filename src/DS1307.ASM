@@ -160,7 +160,7 @@ write_to_rtc proc near
        jnz no_sunday
        mov al,7
 no_sunday:
-       TO_BUFF
+       stosb            ;weekday, no bin2bcd necessary
        mov al,dl        ;month day
        TO_BUFF
        mov al,dh        ;month
@@ -173,7 +173,7 @@ xxi_century:
        TO_BUFF
 
        mov si,offset buf1
-       mov bx,0
+       xor bx,bx
        mov cx,7         ;write 7 bytes (00..06)
        mov ah,11010000b ;dev addr-w (ds1307)
        clc
@@ -243,7 +243,7 @@ read_ds1307 proc near
 ;read 7 bytes from addr 0 (date & time)
 ;to address given in di
 ;if error, carry is set
-       mov bx,0
+       xor bx,bx
        mov cx,7         ;read 7 bytes (00..06)
        mov ah,11010000b ;dev addr-w (ds1307)
        xor al,al        ;don't skip addr wrt

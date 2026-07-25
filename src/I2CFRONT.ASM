@@ -109,9 +109,8 @@ read:
        call i2cwr
        jc i2crderr
        cld               ;autoincrement
-       cmp cx,1
-       jz last_read
        dec cx
+       jz last_read
 arrayrd_loop:
        call i2crd
        mov al,ah
@@ -140,7 +139,7 @@ i2c_test proc far
        push cs
        pop es
        mov di,offset rtc_buff
-       mov bx,0
+       xor bx,bx
        mov cx,8         ;read 8 bytes (00..07)
        mov ah,11010000b ;dev addr-w (ds1307)
        clc
@@ -154,7 +153,7 @@ wrtest:
        push cs
        pop ds
        mov si,offset wr_test_buff
-       mov bx,0
+       xor bx,bx
        mov cx,7         ;write 7 bytes (00..06)
        mov ah,11010000b ;dev addr-w (ds1307)
        clc
