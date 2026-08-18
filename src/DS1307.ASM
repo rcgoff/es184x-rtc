@@ -47,8 +47,6 @@ buf2     equ   0f0h    ;buffer for comparing
 stdout   equ   1
 stderr   equ   2
 
-extrn bin_to_bcd:near
-extrn bcd_to_bin:near
 extrn write_i2c_device:near
 extrn read_i2c_device:near
 extrn argc:near
@@ -287,6 +285,27 @@ check_running proc near
        repe cmpsb       ;compare from control word downto seconds
        ret
 check_running endp
+
+bin_to_bcd      proc    near
+;Convert a binary input in AL (less than 63h or 99 decimal)
+;into a bcd value in AL.  AH destroyed.
+;
+        aam                     ;ah=high digit bcd, al=low digit bcd
+        db      0d5h
+        db      10h             ;it's AAD with 10h base,al=bcd digit, ah=0
+        ret
+bin_to_bcd      endp
+
+bcd_to_bin      proc    near
+;
+;   Bcd_to_bin converts two bcd nibbles in al (value <= 99.) to
+;   a binary representation in al
+;   ah is destroyed
+        db      0d4h
+        db      10h             ;AAM with 10h base,ah=higher digit,al=lower one
+        aad                     ;bcd2bin in al, 00 in ah
+        ret
+bcd_to_bin      endp
 
 todos    db '/TODOS'
 fromdos  db '/FROMDOS'

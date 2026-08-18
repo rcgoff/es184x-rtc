@@ -4,7 +4,7 @@ Real-time clock driver for ES-1840/41.
 This driver is written for common DS1307/DS3231 I2C Arduino module,
 piggy-backed on ES1840/41 8255 (KR580VV55A) chip.
 
-The driver is notably small (1021 bytes).
+The driver is notably small (less than 1024 bytes).
 
 To be more precise, it is not a "driver" in the usual sense,
 just a small tool able to read date/time from the RTC chip

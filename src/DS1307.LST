@@ -47,8 +47,6 @@
  = 0001                         stdout   equ   1 
  = 0002                         stderr   equ   2 
                                  
-                                extrn bin_to_bcd:near 
-                                extrn bcd_to_bin:near 
                                 extrn write_i2c_device:near 
                                 extrn read_i2c_device:near 
                                 extrn argc:near 
@@ -94,7 +92,7 @@
  0125  FC                              cld              ;autoincrement 
  0126  8B C8                           mov cx,ax        ;setup registers for string compare 
  0128  8B FB                           mov di,bx 
- 012A  BE 0278 R                       mov si,offset todos 
+ 012A  BE 0282 R                       mov si,offset todos 
  012D  F3/ A6                          repe cmpsb 
  012F  75 05                           jnz search_cmd_fromdos 
  0131  B8 01DF R                       mov ax,offset read_from_rtc 
@@ -102,7 +100,7 @@
  0136                           search_cmd_fromdos: 
  0136  8B C8                           mov cx,ax 
  0138  8B FB                           mov di,bx 
- 013A  BE 027E R                       mov si,offset fromdos 
+ 013A  BE 0288 R                       mov si,offset fromdos 
  013D  F3/ A6                          repe cmpsb 
  013F  75 2D                           jnz synterr 
  0141  B8 017A R                       mov ax,offset write_to_rtc 
@@ -136,10 +134,10 @@
                                  
                                 ;error messages catalog 
  0172                           msglist label word 
- 0172  02BF R                          dw  oksetmsg 
- 0174  02EC R                          dw  i2cermsg 
- 0176  02C9 R                          dw  norunmsg 
- 0178  0286 R                          dw  synterrmsg 
+ 0172  02C9 R                          dw  oksetmsg 
+ 0174  02F6 R                          dw  i2cermsg 
+ 0176  02D3 R                          dw  norunmsg 
+ 0178  0290 R                          dw  synterrmsg 
                                 select endp 
                                  
  017A                           write_to_rtc proc near 
@@ -150,15 +148,15 @@
  0180  CD 21                           int 21h 
  0182  8A C6                           mov al,dh        ;seconds 
                                        TO_BUFF 
- 0184  E8 0000 E              1        call bin_to_bcd
+ 0184  E8 0278 R              1        call bin_to_bcd
  0187  AA                     1        stosb
  0188  8A C1                           mov al,cl        ;minutes 
                                        TO_BUFF 
- 018A  E8 0000 E              1        call bin_to_bcd
+ 018A  E8 0278 R              1        call bin_to_bcd
  018D  AA                     1        stosb
  018E  8A C5                           mov al,ch        ;hours 
                                        TO_BUFF 
- 0190  E8 0000 E              1        call bin_to_bcd
+ 0190  E8 0278 R              1        call bin_to_bcd
  0193  AA                     1        stosb
  0194  B4 2A                           mov ah,2ah       ;get date 
  0196  CD 21                           int 21h 
@@ -169,11 +167,11 @@
  019E  AA                              stosb            ;weekday, no bin2bcd necessary 
  019F  8A C2                           mov al,dl        ;month day 
                                        TO_BUFF 
- 01A1  E8 0000 E              1        call bin_to_bcd
+ 01A1  E8 0278 R              1        call bin_to_bcd
  01A4  AA                     1        stosb
  01A5  8A C6                           mov al,dh        ;month 
                                        TO_BUFF 
- 01A7  E8 0000 E              1        call bin_to_bcd
+ 01A7  E8 0278 R              1        call bin_to_bcd
  01AA  AA                     1        stosb
  01AB  8B C1                           mov ax,cx        ;year 
  01AD  2D 07D0                         sub ax,2000 
@@ -181,7 +179,7 @@
  01B2  04 64                           add al,100 
  01B4                           xxi_century: 
                                        TO_BUFF 
- 01B4  E8 0000 E              1        call bin_to_bcd
+ 01B4  E8 0278 R              1        call bin_to_bcd
  01B7  AA                     1        stosb
                                  
  01B8  BE 00E0                         mov si,offset buf1 
@@ -216,7 +214,7 @@
  01ED  BE 00F6                         mov si,offset buf2+6 
                                        FROM_BUFF        ;get year 
  01F0  AC                     1        lodsb
- 01F1  E8 0000 E              1        call bcd_to_bin
+ 01F1  E8 027D R              1        call bcd_to_bin
  01F4  98                              cbw 
  01F5  3C 50                           cmp al,80 
  01F7  77 03                           ja xx_century 
@@ -226,10 +224,10 @@
  01FF  8B C8                           mov cx,ax        ;store year 
                                        FROM_BUFF 
  0201  AC                     1        lodsb
- 0202  E8 0000 E              1        call bcd_to_bin
+ 0202  E8 027D R              1        call bcd_to_bin
  0205  8A F0                           mov dh,al        ;store month 
  0207  AD                              lodsw            ;read day, skip weekday 
- 0208  E8 0000 E                       call bcd_to_bin 
+ 0208  E8 027D R                       call bcd_to_bin 
  020B  8A D0                           mov dl,al        ;store day 
  020D  B4 2B                           mov ah,2bh 
  020F  CD 21                           int 21h          ;set date 
@@ -237,15 +235,15 @@
  0213  75 1F                           jnz rerr 
                                        FROM_BUFF 
  0215  AC                     1        lodsb
- 0216  E8 0000 E              1        call bcd_to_bin
+ 0216  E8 027D R              1        call bcd_to_bin
  0219  8A E8                           mov ch,al        ;store hours 
                                        FROM_BUFF 
  021B  AC                     1        lodsb
- 021C  E8 0000 E              1        call bcd_to_bin
+ 021C  E8 027D R              1        call bcd_to_bin
  021F  8A C8                           mov cl,al        ;store minutes 
                                        FROM_BUFF 
  0221  AC                     1        lodsb
- 0222  E8 0000 E              1        call bcd_to_bin
+ 0222  E8 027D R              1        call bcd_to_bin
  0225  98                              cbw 
  0226  8B D0                           mov dx,ax        ;store seconds 
  0228  B4 2D                           mov ah,2dh 
@@ -310,11 +308,32 @@
  0277  C3                              ret 
                                 check_running endp 
                                  
- 0278  2F 54 4F 44 4F 53        todos    db '/TODOS' 
- 027E  2F 46 52 4F 4D 44 4F     fromdos  db '/FROMDOS' 
+ 0278                           bin_to_bcd      proc    near 
+                                ;Convert a binary input in AL (less than 63h or 99 decimal) 
+                                ;into a bcd value in AL.  AH destroyed. 
+                                ; 
+ 0278  D4 0A                            aam                     ;ah=high digit bcd, al=low digit bcd 
+ 027A  D5                               db      0d5h 
+ 027B  10                               db      10h             ;it's AAD with 10h base,al=bcd digit, ah=0 
+ 027C  C3                               ret 
+                                bin_to_bcd      endp 
+                                 
+ 027D                           bcd_to_bin      proc    near 
+                                ; 
+                                ;   Bcd_to_bin converts two bcd nibbles in al (value <= 99.) to 
+                                ;   a binary representation in al 
+                                ;   ah is destroyed 
+ 027D  D4                               db      0d4h 
+ 027E  10                               db      10h             ;AAM with 10h base,ah=higher digit,al=lower one 
+ 027F  D5 0A                            aad                     ;bcd2bin in al, 00 in ah 
+ 0281  C3                               ret 
+                                bcd_to_bin      endp 
+                                 
+ 0282  2F 54 4F 44 4F 53        todos    db '/TODOS' 
+ 0288  2F 46 52 4F 4D 44 4F     fromdos  db '/FROMDOS' 
        53                       
- 0286  38                       synterrmsg db synterrmsglen 
- 0287  53 79 6E 74 61 78 20              db 'Syntax error, usage: DS1307 /todos or DS1307 /fromdos',cr,lf,lf 
+ 0290  38                       synterrmsg db synterrmsglen 
+ 0291  53 79 6E 74 61 78 20              db 'Syntax error, usage: DS1307 /todos or DS1307 /fromdos',cr,lf,lf 
        65 72 72 6F 72 2C 20     
        75 73 61 67 65 3A 20     
        44 53 31 33 30 37 20     
@@ -323,24 +342,24 @@
        30 37 20 2F 66 72 6F     
        6D 64 6F 73 0D 0A 0A     
  = 0038                         synterrmsglen = $-synterrmsg-1 
- 02BF  09                       oksetmsg db oksetmsglen 
- 02C0  52 54 43 20 4F 4B 0D              db 'RTC OK',cr,lf,lf 
+ 02C9  09                       oksetmsg db oksetmsglen 
+ 02CA  52 54 43 20 4F 4B 0D              db 'RTC OK',cr,lf,lf 
        0A 0A                    
  = 0009                         oksetmsglen = $-oksetmsg-1 
- 02C9  22                       norunmsg db norunmsglen 
- 02CA  52 54 43 20 69 73 6E              db "RTC isn't running (bad quartz?)",cr,lf,lf 
+ 02D3  22                       norunmsg db norunmsglen 
+ 02D4  52 54 43 20 69 73 6E              db "RTC isn't running (bad quartz?)",cr,lf,lf 
        27 74 20 72 75 6E 6E     
        69 6E 67 20 28 62 61     
        64 20 71 75 61 72 74     
        7A 3F 29 0D 0A 0A        
  = 0022                         norunmsglen = $-norunmsg-1 
- 02EC  15                       i2cermsg db i2cermsglen 
- 02ED  52 54 43 3A 20 49 32              db "RTC: I2C bus error",cr,lf,lf 
+ 02F6  15                       i2cermsg db i2cermsglen 
+ 02F7  52 54 43 3A 20 49 32              db "RTC: I2C bus error",cr,lf,lf 
        43 20 62 75 73 20 65     
        72 72 6F 72 0D 0A 0A     
  = 0015                         i2cermsglen = $-i2cermsg-1 
                                  
- 0302                           _TEXT ends 
+ 030C                           _TEXT ends 
                                  
                                 end select 
 
@@ -355,7 +374,7 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	0302	WORD	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	030C	WORD	PUBLIC	'CODE'
 
 Symbols:            
 
@@ -366,8 +385,8 @@ ARGC . . . . . . . . . . . . . .  	L NEAR	0000		External
 ARGV . . . . . . . . . . . . . .  	L NEAR	0000		External
 AXPRN  . . . . . . . . . . . . .  	L NEAR	014A	_TEXT
 
-BCD_TO_BIN . . . . . . . . . . .  	L NEAR	0000		External
-BIN_TO_BCD . . . . . . . . . . .  	L NEAR	0000		External
+BCD_TO_BIN . . . . . . . . . . .  	N PROC	027D	_TEXT	Length = 0005
+BIN_TO_BCD . . . . . . . . . . .  	N PROC	0278	_TEXT	Length = 0005
 BUF1 . . . . . . . . . . . . . .  	Number	00E0	
 BUF2 . . . . . . . . . . . . . .  	Number	00F0	
 
@@ -381,11 +400,11 @@ DCMP . . . . . . . . . . . . . .  	L NEAR	0257	_TEXT
 DELAY_2SEC . . . . . . . . . . .  	N PROC	024B	_TEXT	Length = 0017
 DLOOP  . . . . . . . . . . . . .  	L NEAR	0251	_TEXT
 
-FROMDOS  . . . . . . . . . . . .  	L BYTE 	027E	_TEXT
+FROMDOS  . . . . . . . . . . . .  	L BYTE 	0288	_TEXT
 
 GET_CMD  . . . . . . . . . . . .  	L NEAR	010B	_TEXT
 
-I2CERMSG . . . . . . . . . . . .  	L BYTE 	02EC	_TEXT
+I2CERMSG . . . . . . . . . . . .  	L BYTE 	02F6	_TEXT
 I2CERMSGLEN  . . . . . . . . . .  	Number	0015	
 
 LF . . . . . . . . . . . . . . .  	Number	000A	
@@ -393,11 +412,11 @@ LF . . . . . . . . . . . . . . .  	Number	000A
 MSGLIST  . . . . . . . . . . . .  	L WORD 	0172	_TEXT
 
 NORUN  . . . . . . . . . . . . .  	L NEAR	01D6	_TEXT
-NORUNMSG . . . . . . . . . . . .  	L BYTE 	02C9	_TEXT
+NORUNMSG . . . . . . . . . . . .  	L BYTE 	02D3	_TEXT
 NORUNMSGLEN  . . . . . . . . . .  	Number	0022	
 NO_SUNDAY  . . . . . . . . . . .  	L NEAR	019E	_TEXT
 
-OKSETMSG . . . . . . . . . . . .  	L BYTE 	02BF	_TEXT
+OKSETMSG . . . . . . . . . . . .  	L BYTE 	02C9	_TEXT
 OKSETMSGLEN  . . . . . . . . . .  	Number	0009	
 
 PRINTFNOERR  . . . . . . . . . .  	L NEAR	0164	_TEXT
@@ -414,10 +433,10 @@ SELECT . . . . . . . . . . . . .  	N PROC	0100	_TEXT	Length = 007A
 STDERR . . . . . . . . . . . . .  	Number	0002	
 STDOUT . . . . . . . . . . . . .  	Number	0001	
 SYNTERR  . . . . . . . . . . . .  	L NEAR	016E	_TEXT
-SYNTERRMSG . . . . . . . . . . .  	L BYTE 	0286	_TEXT
+SYNTERRMSG . . . . . . . . . . .  	L BYTE 	0290	_TEXT
 SYNTERRMSGLEN  . . . . . . . . .  	Number	0038	
 
-TODOS  . . . . . . . . . . . . .  	L BYTE 	0278	_TEXT
+TODOS  . . . . . . . . . . . . .  	L BYTE 	0282	_TEXT
 
 UCASE1 . . . . . . . . . . . . .  	L NEAR	0115	_TEXT
 UCASE2 . . . . . . . . . . . . .  	L NEAR	0122	_TEXT
@@ -431,8 +450,8 @@ XXI_CENTURY  . . . . . . . . . .  	L NEAR	01B4	_TEXT
 XX_CENTURY . . . . . . . . . . .  	L NEAR	01FC	_TEXT
 
 
-    308 Source  Lines
-    341 Total   Lines
+    327 Source  Lines
+    360 Total   Lines
      76 Symbols
 
   48292 Bytes symbol space free

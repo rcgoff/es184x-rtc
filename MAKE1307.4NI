@@ -4,17 +4,14 @@ src\i2cbckni.obj: src\i2cback.asm
 src\i2cfront.obj: src\i2cfront.asm
     masm src\i2cfront,src\i2cfront,src\i2cfront;
 
-src\bcd.obj: src\bcd.asm
-    masm src\bcd,src\bcd,src\bcd;
-
 src\argc.obj: src\argc.asm src\dump.inc
    masm /Isrc src\argc, src\argc, src\argc;
 
 src\ds1307.obj: src\ds1307.asm
     masm src\ds1307,src\ds1307,src\ds1307;
 
-ds1307.com: src\ds1307.obj src\bcd.obj src\i2cfront.obj src\i2cbckni.obj \
+ds1307.com: src\ds1307.obj src\i2cfront.obj src\i2cbckni.obj \
 src\argc.obj
-    link src\ds1307 src\bcd src\i2cfront src\i2cbckni src\argc,ds1307,con;
+    link src\ds1307 src\i2cfront src\i2cbckni src\argc,ds1307,con;
     exe2bin ds1307
     command /c 2com ds1307
