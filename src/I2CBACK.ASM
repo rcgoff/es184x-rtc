@@ -14,7 +14,7 @@
 ;I2C device must be connected via OC gate or just a
 ;transistor tied to port B bit 2 (and inversion must be used!)
 
-;L.Yadrennikov june, august 2025, may 2026
+;L.Yadrennikov jun, aug 2025, may, sep 2026
 
 public i2cwr
 public i2crd
@@ -24,9 +24,11 @@ port_b           equ 61h
 port_c           equ 62h
 sda_out_position equ 2
 sda_in_position  equ 4
+scl_position     equ 3
 sda_out_mask     equ 1 SHL sda_out_position
 sda_in_mask      equ 1 SHL sda_in_position
-scl_mask         equ 00001000b
+sda_in_to_cf_add equ 100h-sda_in_mask
+scl_mask         equ 1 SHL scl_position
 
 SCL_HI macro             ;raise SCL
        or  al,scl_mask
@@ -109,7 +111,7 @@ i2cwr proc near
 ;On return:
 ;   CY clear - All OK
 ;   CY set   - No acknowlege bit from device
-       push ax
+;   AX destroyed
        push bx
        push cx
        push dx
@@ -144,22 +146,29 @@ i2cwr_loop:
        SCL_HI
        SCL_LO
        loop i2cwr_loop
-       or  al,sda_out_mask     ;put SDA pin high regardless of inversion settings
-       out dx,al
+       SDA_HI
+;caveat programmer! If the hardware is non-inverting,
+;and we use inverting routine, then we will get "0"
+;as if we get proper ACK bit, even if device is absent.
+;But if we will always set SDA_OUT to 1, regardless of
+;the inversion settings, on inverting hardware we will
+;always get "0" as if we get proper ACK, even if device
+;is absent.
+;Proper way is to detect I2C harness, inverting or not,
+;by asserting 1 and 0 and reading the results.
+;Now I will put inversion-dependent check in assumption
+;that the pair (routine,hardware) is proper,
+;to be able to check device presence.
        SCL_HI
        in  al,port_c     ;read acknowlege bit
        mov ah,al
        in  al,dx         ;restore port values
        SCL_LO
-       clc
        and ah,sda_in_mask
-       jz  wrexit
-       stc               ;error if Ack<>0
-wrexit:
+       neg ah            ;1-ah, set CY if ACK<>0
        pop dx
        pop cx
        pop bx
-       pop ax
        ret
 i2cwr endp
 
@@ -171,7 +180,6 @@ i2crd proc near
 ;On return:
 ;   AH - byte from I2C device
 ;   CY clear
-       push bx
        push cx
        push dx
        pushf
@@ -182,15 +190,14 @@ ifdef invert
 else
        and ax,00ffh and not (sda_out_mask or scl_mask)
 endif
-       mov bl,sda_in_mask
        mov cx,8          ;amount of bits to read
-i2crd_loop:
-       rol ah,1
        SDA_HI
+i2crd_loop:
        SCL_HI
        in  al,port_c     ;read next bit
-       and al,bl
-       or  ah,al
+       and al,sda_in_mask
+       add al,sda_in_to_cf_add  ;set CF=read bit
+       rcl ah,1          ;put next bit from CF to AH
        in  al,dx         ;restore port values
        SCL_LO
        loop i2crd_loop
@@ -200,14 +207,9 @@ i2crd_loop:
 rd_finshift:
        SCL_HI            ;9th clock in both cases (ack vs no ack)
        SCL_LO
-       mov cl,sda_in_position
-       rol ah,cl         ;now the highest bit from device
-                         ;is in proper position
-rdexit:
        clc
        pop dx
        pop cx
-       pop bx
        ret
 i2crd endp
 

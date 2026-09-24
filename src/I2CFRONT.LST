@@ -178,7 +178,5 @@ WRITE_I2C_DEVICE . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0037
     193 Total   Lines
      38 Symbols
 
-  49476 Bytes symbol space free
-
       0 Warning Errors
       0 Severe  Errors
