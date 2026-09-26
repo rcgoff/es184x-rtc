@@ -1,5 +1,5 @@
 ;Real-time clock set-reset based on DS1307 chip
-;L.Yadrennikov june-september 2025
+;L.Yadrennikov june-september 2025, sep 2026
 
 ;DOS functions for time/date
 ;int 21h, AH=2Ah. get system date.
@@ -70,44 +70,43 @@ org 100h
 select proc near
        mov  bx,offset cmd    ;ES:BX points to command tail
        call argc        ;argument count
-       cmp  ax,2
+       cmp  al,2
        jne  synterr     ;if not exactly 2 arguments, error and exit
 get_cmd:
        mov  ax,1        ;AX - arg.number, ES:BX - command tail as before
-       call argv        ;returns addr in ES:BX and length in AX
-
+       call argv        ;returns addr in ES:BX and length in AX:
                         ;convert argument to uppercase
-       mov cx,ax
-       mov si,bx
+       mov  cx,ax
+       mov  si,bx
 ucase1:
-       cmp byte ptr [si],'a'
-       jb ucase2
-       cmp byte ptr [si],'z'
-       ja ucase2
-       sub byte ptr [si],'a'-'A'
+       cmp  byte ptr [si],'a'
+       jb   ucase2
+       cmp  byte ptr [si],'z'
+       ja   ucase2
+       sub  byte ptr [si],'a'-'A'
 ucase2:
-       inc si
+       inc  si
        loop ucase1
-                        ;compare argument with proper strings
+                        ;check for argument correctness
+       mov  cx,ax       ;setup registers for string compare
+       db   3ch,todoslen     ;cmp  al,todoslen
+       je   check_todos
+       db   3ch,fromdoslen   ;cmp  al,fromdoslen
+       jne  synterr     ;error if argument length not match
+       mov  si,offset fromdos              ;for string compare
+       mov  ax,offset write_to_rtc         ;for future call
+       jmp  short arg_common
+check_todos:
+       mov  si,offset todos                ;for string compare
+       mov  ax,offset read_from_rtc        ;for future call
+arg_common:             ;compare argument with proper strings
        cld              ;autoincrement
-       mov cx,ax        ;setup registers for string compare
-       mov di,bx
-       mov si,offset todos
+       mov  di,bx       ;setup registers for string compare
        repe cmpsb
-       jnz search_cmd_fromdos
-       mov ax,offset read_from_rtc
-       jmp short call_selected
-search_cmd_fromdos:
-       mov cx,ax
-       mov di,bx
-       mov si,offset fromdos
-       repe cmpsb
-       jnz synterr
-       mov ax,offset write_to_rtc
-call_selected:
-       call ax                ;call selected subroutine, return errorlevel
-       or  ah,ah              ;check if it was reading w/errorlevel 0
-       jnz cexit              ;then quiet exit
+       jnz  synterr
+       call ax          ;call selected subroutine, return errorlevel
+       or   ah,ah       ;check if it was reading w/errorlevel 0
+       jnz  cexit       ;then quiet exit
 axprn: cbw
        mov bx,ax
        shl bx,1
@@ -308,7 +307,9 @@ bcd_to_bin      proc    near
 bcd_to_bin      endp
 
 todos    db '/TODOS'
+todoslen = $-todos
 fromdos  db '/FROMDOS'
+fromdoslen = $-fromdos
 synterrmsg db synterrmsglen
          db 'Syntax error, usage: DS1307 /todos or DS1307 /fromdos',cr,lf,lf
 synterrmsglen = $-synterrmsg-1
