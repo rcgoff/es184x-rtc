@@ -27,7 +27,6 @@
  = 0003                         scl_position     equ 3 
  = 0004                         sda_out_mask     equ 1 SHL sda_out_position 
  = 0010                         sda_in_mask      equ 1 SHL sda_in_position 
- = 00F0                         sda_in_to_cf_add equ 100h-sda_in_mask 
  = 0008                         scl_mask         equ 1 SHL scl_position 
                                  
                                 SCL_HI macro             ;raise SCL 
@@ -222,7 +221,7 @@
  0080  EE                     1        out dx,al
  0081  E4 62                           in  al,port_c     ;read next bit 
  0083  24 10                           and al,sda_in_mask 
- 0085  04 F0                           add al,sda_in_to_cf_add  ;set CF=read bit 
+ 0085  F6 D8                           neg al            ;set CF=read bit 
  0087  D0 D4                           rcl ah,1          ;put next bit from CF to AH 
  0089  EC                              in  al,dx         ;restore port values 
                                        SCL_LO 
@@ -288,15 +287,14 @@ SCL_MASK . . . . . . . . . . . .  	Number	0008
 SCL_POSITION . . . . . . . . . .  	Number	0003	
 SDA_IN_MASK  . . . . . . . . . .  	Number	0010	
 SDA_IN_POSITION  . . . . . . . .  	Number	0004	
-SDA_IN_TO_CF_ADD . . . . . . . .  	Number	00F0	
 SDA_OUT_MASK . . . . . . . . . .  	Number	0004	
 SDA_OUT_POSITION . . . . . . . .  	Number	0002	
 STOPGEN  . . . . . . . . . . . .  	L NEAR	001A	_TEXT
 
 
-    218 Source  Lines
-    291 Total   Lines
-     46 Symbols
+    217 Source  Lines
+    290 Total   Lines
+     45 Symbols
 
       0 Warning Errors
       0 Severe  Errors

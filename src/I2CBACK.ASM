@@ -27,7 +27,6 @@ sda_in_position  equ 4
 scl_position     equ 3
 sda_out_mask     equ 1 SHL sda_out_position
 sda_in_mask      equ 1 SHL sda_in_position
-sda_in_to_cf_add equ 100h-sda_in_mask
 scl_mask         equ 1 SHL scl_position
 
 SCL_HI macro             ;raise SCL
@@ -196,7 +195,7 @@ i2crd_loop:
        SCL_HI
        in  al,port_c     ;read next bit
        and al,sda_in_mask
-       add al,sda_in_to_cf_add  ;set CF=read bit
+       neg al            ;set CF=read bit
        rcl ah,1          ;put next bit from CF to AH
        in  al,dx         ;restore port values
        SCL_LO
