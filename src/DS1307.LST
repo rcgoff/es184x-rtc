@@ -74,7 +74,7 @@
  0108  75 63                           jne  synterr     ;if not exactly 2 arguments, error and exit 
  010A                           get_cmd: 
  010A  B8 0001                         mov  ax,1        ;AX - arg.number, ES:BX - command tail as before 
- 010D  E8 0000 E                       call argv        ;returns addr in ES:BX and length in AX: 
+ 010D  E8 0000 E                       call argv        ;returns addr in ES:BX and length in AX 
                                                         ;convert argument to uppercase 
  0110  8B C8                           mov  cx,ax 
  0112  8B F3                           mov  si,bx 

@@ -72,50 +72,75 @@
                                 assume cs:_TEXT 
                                  
  0000                           i2c_stopreset proc near 
-                                ;Force i2c reset after undefined bus and/or device state 
+                                ;Detect I2C harness (in-to-out connection) presence, 
+                                ;and force i2c reset after undefined bus and/or device state 
                                 ;or just generate STOP 
                                 ;On call: 
-                                ;   CY clear - 9 SCLs, then stop 
+                                ;   CY clear - detect harness, 9 SCLs, then stop 
                                 ;   CY set   - Just stop 
                                 ;On return: 
-                                ;   Nothing 
+                                ;   CY set - no I2C harness 
  0000  50                              push ax 
  0001  51                              push cx 
  0002  52                              push dx 
  0003  BA 0061                         mov dx,port_b 
  0006  EC                              in al,dx 
- 0007  72 11                           jc stopgen 
+ 0007  72 29                           jc stopgen 
+                                                         ;detect I2C harness 
+ 0009  0C 04                           or  al,sda_out_mask       ;SDA=1 
+ 000B  EE                              out dx,al 
+ 000C  42                              inc dx            ;port_C 
+ 000D  EC                              in al,dx 
+ 000E  24 10                           and al,sda_in_mask 
+ 0010  8A E0                           mov ah,al         ;keep 1st SDA read 
+ 0012  4A                              dec dx            ;port_B 
+ 0013  EC                              in al,dx 
+ 0014  24 FB                           and al,not sda_out_mask   ;SDA=0 
+ 0016  EE                              out dx,al 
+ 0017  42                              inc dx            ;port_C 
+ 0018  EC                              in al,dx 
+ 0019  24 10                           and al,sda_in_mask 
+ 001B  32 E0                           xor ah,al         ;1 if harness exists 
+ 001D  74 20                           jz no_harness 
+                                ;at this point,AL=0 means non-inverted harness 
+ 001F  4A                              dec dx            ;port_B 
+ 0020  EC                              in al,dx 
                                        SCL_LO 
- 0009  24 F7                  1        and al,not scl_mask
- 000B  EE                     1        out dx,al
+ 0021  24 F7                  1        and al,not scl_mask
+ 0023  EE                     1        out dx,al
                                        SDA_HI 
- 000C  0C 04                  1        or  al,sda_out_mask
- 000E  EE                     1        out dx,al
- 000F  B9 0009                         mov cx,9 
- 0012                           scloop: 
+ 0024  0C 04                  1        or  al,sda_out_mask
+ 0026  EE                     1        out dx,al
+ 0027  B9 0009                         mov cx,9 
+ 002A                           scloop: 
                                        SCL_HI 
- 0012  0C 08                  1        or  al,scl_mask
- 0014  EE                     1        out dx,al
+ 002A  0C 08                  1        or  al,scl_mask
+ 002C  EE                     1        out dx,al
                                        SCL_LO 
- 0015  24 F7                  1        and al,not scl_mask
- 0017  EE                     1        out dx,al
- 0018  E2 F8                           loop scloop 
- 001A                           stopgen: 
+ 002D  24 F7                  1        and al,not scl_mask
+ 002F  EE                     1        out dx,al
+ 0030  E2 F8                           loop scloop 
+ 0032                           stopgen: 
                                        I2C_STOP 
- 001A  24 FB                  2        and al,not sda_out_mask
- 001C  EE                     2        out dx,al
- 001D  0C 08                  2        or  al,scl_mask
- 001F  EE                     2        out dx,al
- 0020  0C 04                  2        or  al,sda_out_mask
- 0022  EE                     2        out dx,al
- 0023  5A                              pop dx 
- 0024  59                              pop cx 
- 0025  58                              pop ax 
- 0026  C3                              ret 
+ 0032  24 FB                  2        and al,not sda_out_mask
+ 0034  EE                     2        out dx,al
+ 0035  0C 08                  2        or  al,scl_mask
+ 0037  EE                     2        out dx,al
+ 0038  0C 04                  2        or  al,sda_out_mask
+ 003A  EE                     2        out dx,al
+ 003B                           stresexit: 
+ 003B  5A                              pop dx 
+ 003C  59                              pop cx 
+ 003D  58                              pop ax 
+ 003E  C3                              ret 
+                                 
+ 003F                           no_harness: 
+ 003F  F9                              stc 
+ 0040  EB F9                           jmp short stresexit 
                                 i2c_stopreset endp 
                                  
                                  
- 0027                           i2cwr proc near 
+ 0042                           i2cwr proc near 
                                 ;Write AH to I2C device 
                                 ;On call: 
                                 ;   AH - byte for output to I2C device 
@@ -125,47 +150,47 @@
                                 ;   CY clear - All OK 
                                 ;   CY set   - No acknowlege bit from device 
                                 ;   AX destroyed 
- 0027  53                              push bx 
- 0028  51                              push cx 
- 0029  52                              push dx 
- 002A  9C                              pushf 
- 002B  BA 0061                         mov dx,port_b 
- 002E  EC                              in  al,dx 
- 002F  24 F3                           and al,not (sda_out_mask or scl_mask) 
- 0031  8A D8                           mov bl,al         ;save previous port with 0s at i2c pins 
+ 0042  53                              push bx 
+ 0043  51                              push cx 
+ 0044  52                              push dx 
+ 0045  9C                              pushf 
+ 0046  BA 0061                         mov dx,port_b 
+ 0049  EC                              in  al,dx 
+ 004A  24 F3                           and al,not (sda_out_mask or scl_mask) 
+ 004C  8A D8                           mov bl,al         ;save previous port with 0s at i2c pins 
                                  
- 0033  B1 02                           mov cl,sda_out_position 
+ 004E  B1 02                           mov cl,sda_out_position 
                                 endif 
- 0035  D2 C4                           rol ah,cl         ;now the highest bit for output to device 
+ 0050  D2 C4                           rol ah,cl         ;now the highest bit for output to device 
                                                          ;is in proper position 
- 0037  B9 0008                         mov cx,8          ;amount of bits to output 
- 003A  9D                              popf 
- 003B  73 09                           jnc i2cwr_loop 
+ 0052  B9 0008                         mov cx,8          ;amount of bits to output 
+ 0055  9D                              popf 
+ 0056  73 09                           jnc i2cwr_loop 
                                 else 
- 003D  0C 0C                           or  al, (scl_mask or sda_out_mask) 
+ 0058  0C 0C                           or  al, (scl_mask or sda_out_mask) 
                                 endif 
- 003F  EE                              out dx,al         ;out idle state on i2c 
+ 005A  EE                              out dx,al         ;out idle state on i2c 
                                        I2C_START 
- 0040  24 FB                  2        and al,not sda_out_mask
- 0042  EE                     2        out dx,al
- 0043  24 F7                  2        and al,not scl_mask
- 0045  EE                     2        out dx,al
- 0046                           i2cwr_loop: 
- 0046  D0 C4                           rol ah,1 
- 0048  B0 04                           mov al,sda_out_mask 
- 004A  22 C4                           and al,ah         ;select proper bit 
- 004C  0A C3                           or  al,bl         ;put proper DATA bit 
- 004E  EE                              out dx,al         ;keep SCL low, out DATA 
+ 005B  24 FB                  2        and al,not sda_out_mask
+ 005D  EE                     2        out dx,al
+ 005E  24 F7                  2        and al,not scl_mask
+ 0060  EE                     2        out dx,al
+ 0061                           i2cwr_loop: 
+ 0061  D0 C4                           rol ah,1 
+ 0063  B0 04                           mov al,sda_out_mask 
+ 0065  22 C4                           and al,ah         ;select proper bit 
+ 0067  0A C3                           or  al,bl         ;put proper DATA bit 
+ 0069  EE                              out dx,al         ;keep SCL low, out DATA 
                                        SCL_HI 
- 004F  0C 08                  1        or  al,scl_mask
- 0051  EE                     1        out dx,al
+ 006A  0C 08                  1        or  al,scl_mask
+ 006C  EE                     1        out dx,al
                                        SCL_LO 
- 0052  24 F7                  1        and al,not scl_mask
- 0054  EE                     1        out dx,al
- 0055  E2 EF                           loop i2cwr_loop 
+ 006D  24 F7                  1        and al,not scl_mask
+ 006F  EE                     1        out dx,al
+ 0070  E2 EF                           loop i2cwr_loop 
                                        SDA_HI 
- 0057  0C 04                  1        or  al,sda_out_mask
- 0059  EE                     1        out dx,al
+ 0072  0C 04                  1        or  al,sda_out_mask
+ 0074  EE                     1        out dx,al
                                 ;caveat programmer! If the hardware is non-inverting, 
                                 ;and we use inverting routine, then we will get "0" 
                                 ;as if we get proper ACK bit, even if device is absent. 
@@ -179,23 +204,23 @@
                                 ;that the pair (routine,hardware) is proper, 
                                 ;to be able to check device presence. 
                                        SCL_HI 
- 005A  0C 08                  1        or  al,scl_mask
- 005C  EE                     1        out dx,al
- 005D  E4 62                           in  al,port_c     ;read acknowlege bit 
- 005F  8A E0                           mov ah,al 
- 0061  EC                              in  al,dx         ;restore port values 
+ 0075  0C 08                  1        or  al,scl_mask
+ 0077  EE                     1        out dx,al
+ 0078  E4 62                           in  al,port_c     ;read acknowlege bit 
+ 007A  8A E0                           mov ah,al 
+ 007C  EC                              in  al,dx         ;restore port values 
                                        SCL_LO 
- 0062  24 F7                  1        and al,not scl_mask
- 0064  EE                     1        out dx,al
- 0065  80 E4 10                        and ah,sda_in_mask 
- 0068  F6 DC                           neg ah            ;1-ah, set CY if ACK<>0 
- 006A  5A                              pop dx 
- 006B  59                              pop cx 
- 006C  5B                              pop bx 
- 006D  C3                              ret 
+ 007D  24 F7                  1        and al,not scl_mask
+ 007F  EE                     1        out dx,al
+ 0080  80 E4 10                        and ah,sda_in_mask 
+ 0083  F6 DC                           neg ah            ;1-ah, set CY if ACK<>0 
+ 0085  5A                              pop dx 
+ 0086  59                              pop cx 
+ 0087  5B                              pop bx 
+ 0088  C3                              ret 
                                 i2cwr endp 
                                  
- 006E                           i2crd proc near 
+ 0089                           i2crd proc near 
                                 ;Read from I2C device to AH 
                                 ;On call: 
                                 ;   CY clear - Generate acknowlege bit 
@@ -203,50 +228,50 @@
                                 ;On return: 
                                 ;   AH - byte from I2C device 
                                 ;   CY clear 
- 006E  51                              push cx 
- 006F  52                              push dx 
- 0070  9C                              pushf 
- 0071  BA 0061                         mov dx,port_b 
- 0074  EC                              in  al,dx 
+ 0089  51                              push cx 
+ 008A  52                              push dx 
+ 008B  9C                              pushf 
+ 008C  BA 0061                         mov dx,port_b 
+ 008F  EC                              in  al,dx 
                                 else 
- 0075  25 00F3                         and ax,00ffh and not (sda_out_mask or scl_mask) 
+ 0090  25 00F3                         and ax,00ffh and not (sda_out_mask or scl_mask) 
                                 endif 
- 0078  B9 0008                         mov cx,8          ;amount of bits to read 
+ 0093  B9 0008                         mov cx,8          ;amount of bits to read 
                                        SDA_HI 
- 007B  0C 04                  1        or  al,sda_out_mask
- 007D  EE                     1        out dx,al
- 007E                           i2crd_loop: 
+ 0096  0C 04                  1        or  al,sda_out_mask
+ 0098  EE                     1        out dx,al
+ 0099                           i2crd_loop: 
                                        SCL_HI 
- 007E  0C 08                  1        or  al,scl_mask
- 0080  EE                     1        out dx,al
- 0081  E4 62                           in  al,port_c     ;read next bit 
- 0083  24 10                           and al,sda_in_mask 
- 0085  F6 D8                           neg al            ;set CF=read bit 
- 0087  D0 D4                           rcl ah,1          ;put next bit from CF to AH 
- 0089  EC                              in  al,dx         ;restore port values 
+ 0099  0C 08                  1        or  al,scl_mask
+ 009B  EE                     1        out dx,al
+ 009C  E4 62                           in  al,port_c     ;read next bit 
+ 009E  24 10                           and al,sda_in_mask 
+ 00A0  F6 D8                           neg al            ;set CF=read bit 
+ 00A2  D0 D4                           rcl ah,1          ;put next bit from CF to AH 
+ 00A4  EC                              in  al,dx         ;restore port values 
                                        SCL_LO 
- 008A  24 F7                  1        and al,not scl_mask
- 008C  EE                     1        out dx,al
- 008D  E2 EF                           loop i2crd_loop 
- 008F  9D                              popf 
- 0090  72 03                           jc  rd_finshift   ;skip acknowlege byte if desired 
+ 00A5  24 F7                  1        and al,not scl_mask
+ 00A7  EE                     1        out dx,al
+ 00A8  E2 EF                           loop i2crd_loop 
+ 00AA  9D                              popf 
+ 00AB  72 03                           jc  rd_finshift   ;skip acknowlege byte if desired 
                                        SDA_LO            ;send acknowlege byte 
- 0092  24 FB                  1        and al,not sda_out_mask
- 0094  EE                     1        out dx,al
- 0095                           rd_finshift: 
+ 00AD  24 FB                  1        and al,not sda_out_mask
+ 00AF  EE                     1        out dx,al
+ 00B0                           rd_finshift: 
                                        SCL_HI            ;9th clock in both cases (ack vs no ack) 
- 0095  0C 08                  1        or  al,scl_mask
- 0097  EE                     1        out dx,al
+ 00B0  0C 08                  1        or  al,scl_mask
+ 00B2  EE                     1        out dx,al
                                        SCL_LO 
- 0098  24 F7                  1        and al,not scl_mask
- 009A  EE                     1        out dx,al
- 009B  F8                              clc 
- 009C  5A                              pop dx 
- 009D  59                              pop cx 
- 009E  C3                              ret 
+ 00B3  24 F7                  1        and al,not scl_mask
+ 00B5  EE                     1        out dx,al
+ 00B6  F8                              clc 
+ 00B7  5A                              pop dx 
+ 00B8  59                              pop cx 
+ 00B9  C3                              ret 
                                 i2crd endp 
                                  
- 009F                           _TEXT ends 
+ 00BA                           _TEXT ends 
                                  
                                 end 
 
@@ -265,36 +290,39 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	009F	WORD	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	00BA	WORD	PUBLIC	'CODE'
 
 Symbols:            
 
                 N a m e         	Type	Value	Attr         
 
-I2CRD  . . . . . . . . . . . . .  	N PROC	006E	_TEXT	Global	Length = 0031
-I2CRD_LOOP . . . . . . . . . . .  	L NEAR	007E	_TEXT
-I2CWR  . . . . . . . . . . . . .  	N PROC	0027	_TEXT	Global	Length = 0047
-I2CWR_LOOP . . . . . . . . . . .  	L NEAR	0046	_TEXT
-I2C_STOPRESET  . . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0027
+I2CRD  . . . . . . . . . . . . .  	N PROC	0089	_TEXT	Global	Length = 0031
+I2CRD_LOOP . . . . . . . . . . .  	L NEAR	0099	_TEXT
+I2CWR  . . . . . . . . . . . . .  	N PROC	0042	_TEXT	Global	Length = 0047
+I2CWR_LOOP . . . . . . . . . . .  	L NEAR	0061	_TEXT
+I2C_STOPRESET  . . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0042
+
+NO_HARNESS . . . . . . . . . . .  	L NEAR	003F	_TEXT
 
 PORT_B . . . . . . . . . . . . .  	Number	0061	
 PORT_C . . . . . . . . . . . . .  	Number	0062	
 
-RD_FINSHIFT  . . . . . . . . . .  	L NEAR	0095	_TEXT
+RD_FINSHIFT  . . . . . . . . . .  	L NEAR	00B0	_TEXT
 
-SCLOOP . . . . . . . . . . . . .  	L NEAR	0012	_TEXT
+SCLOOP . . . . . . . . . . . . .  	L NEAR	002A	_TEXT
 SCL_MASK . . . . . . . . . . . .  	Number	0008	
 SCL_POSITION . . . . . . . . . .  	Number	0003	
 SDA_IN_MASK  . . . . . . . . . .  	Number	0010	
 SDA_IN_POSITION  . . . . . . . .  	Number	0004	
 SDA_OUT_MASK . . . . . . . . . .  	Number	0004	
 SDA_OUT_POSITION . . . . . . . .  	Number	0002	
-STOPGEN  . . . . . . . . . . . .  	L NEAR	001A	_TEXT
+STOPGEN  . . . . . . . . . . . .  	L NEAR	0032	_TEXT
+STRESEXIT  . . . . . . . . . . .  	L NEAR	003B	_TEXT
 
 
-    217 Source  Lines
-    290 Total   Lines
-     45 Symbols
+    242 Source  Lines
+    315 Total   Lines
+     47 Symbols
 
       0 Warning Errors
       0 Severe  Errors

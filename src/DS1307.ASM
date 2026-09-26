@@ -74,7 +74,7 @@ select proc near
        jne  synterr     ;if not exactly 2 arguments, error and exit
 get_cmd:
        mov  ax,1        ;AX - arg.number, ES:BX - command tail as before
-       call argv        ;returns addr in ES:BX and length in AX:
+       call argv        ;returns addr in ES:BX and length in AX
                         ;convert argument to uppercase
        mov  cx,ax
        mov  si,bx

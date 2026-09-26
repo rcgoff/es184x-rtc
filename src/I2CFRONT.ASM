@@ -2,7 +2,7 @@ debug  equ 0    ;1=debug mode (stand-alone program)
 com    equ 1    ;1 if com file
 ;i2c bus routines (Front-end)
 
-;L.Yadrennikov june-july 2025
+;L.Yadrennikov june-july 2025, sep 2026
 
 public write_i2c_device
 public read_i2c_device
@@ -31,6 +31,7 @@ write_i2c_device proc near
        pushf
        clc               ;9 SCL, then stop
        call i2c_stopreset
+       jc i2cwrerr
        stc
        call i2cwr        ;send dev addr from AH
        jc i2cwrerr
@@ -86,6 +87,7 @@ read_i2c_device proc near
        pop bp
        clc
        call i2c_stopreset
+       jc i2crderr
        or al,al
        jnz read
        stc

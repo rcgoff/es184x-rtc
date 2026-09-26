@@ -72,19 +72,39 @@ _TEXT segment word public 'CODE'
 assume cs:_TEXT
 
 i2c_stopreset proc near
-;Force i2c reset after undefined bus and/or device state
+;Detect I2C harness (in-to-out connection) presence,
+;and force i2c reset after undefined bus and/or device state
 ;or just generate STOP
 ;On call:
-;   CY clear - 9 SCLs, then stop
+;   CY clear - detect harness, 9 SCLs, then stop
 ;   CY set   - Just stop
 ;On return:
-;   Nothing
+;   CY set - no I2C harness
        push ax
        push cx
        push dx
        mov dx,port_b
        in al,dx
        jc stopgen
+                         ;detect I2C harness
+       or  al,sda_out_mask       ;SDA=1
+       out dx,al
+       inc dx            ;port_C
+       in al,dx
+       and al,sda_in_mask
+       mov ah,al         ;keep 1st SDA read
+       dec dx            ;port_B
+       in al,dx
+       and al,not sda_out_mask   ;SDA=0
+       out dx,al
+       inc dx            ;port_C
+       in al,dx
+       and al,sda_in_mask
+       xor ah,al         ;1 if harness exists
+       jz no_harness
+;at this point,AL=0 means non-inverted harness
+       dec dx            ;port_B
+       in al,dx
        SCL_LO
        SDA_HI
        mov cx,9
@@ -94,10 +114,15 @@ scloop:
        loop scloop
 stopgen:
        I2C_STOP
+stresexit:
        pop dx
        pop cx
        pop ax
        ret
+
+no_harness:
+       stc
+       jmp short stresexit
 i2c_stopreset endp
 
 
