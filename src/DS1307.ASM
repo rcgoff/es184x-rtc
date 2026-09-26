@@ -278,10 +278,10 @@ check_running proc near
        call read_ds1307
                         ;check if RTC is running, by comparison
        std              ;autodecrement
-       mov cx,8         ;setup registers for string compare
-       mov di,offset buf2+7
-       mov si,offset buf1+7
-       repe cmpsb       ;compare from control word downto seconds
+       mov cx,7         ;setup registers for string compare
+       mov di,offset buf2+6
+       mov si,offset buf1+6
+       repe cmpsb       ;compare from year downto seconds
        ret
 check_running endp
 

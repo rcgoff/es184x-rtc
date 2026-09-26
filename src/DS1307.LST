@@ -300,10 +300,10 @@
  0267  E8 023C R                       call read_ds1307 
                                                         ;check if RTC is running, by comparison 
  026A  FD                              std              ;autodecrement 
- 026B  B9 0008                         mov cx,8         ;setup registers for string compare 
- 026E  BF 00F7                         mov di,offset buf2+7 
- 0271  BE 00E7                         mov si,offset buf1+7 
- 0274  F3/ A6                          repe cmpsb       ;compare from control word downto seconds 
+ 026B  B9 0007                         mov cx,7         ;setup registers for string compare 
+ 026E  BF 00F6                         mov di,offset buf2+6 
+ 0271  BE 00E6                         mov si,offset buf1+6 
+ 0274  F3/ A6                          repe cmpsb       ;compare from year downto seconds 
  0276  C3                              ret 
                                 check_running endp 
                                  
