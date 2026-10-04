@@ -68,8 +68,13 @@ I2C_START macro          ;issue start condition
        SCL_LO
        endm
 
+_DATA segment at 0h      ;data segment is PSP
+       org 0efh
+       inversion_mask db ?
+_DATA ends
+
 _TEXT segment word public 'CODE'
-assume cs:_TEXT
+assume cs:_TEXT,ds:_DATA
 
 i2c_stopreset proc near
 ;Detect I2C harness (in-to-out connection) presence,
@@ -100,6 +105,11 @@ i2c_stopreset proc near
        xor ah,al         ;1 if harness exists
        jz no_harness
 ;at this point,AL=0 means non-inverted harness
+       add al,100h-sda_in_mask   ;CY=1 means inverted harness
+       sbb al,al                 ;AL=FFh means inverted harness
+       and al,sda_out_mask       ;now 'AL XOR databit' ready for inv/noninv
+       mov inversion_mask,al     ;keep it in memory
+;9 SCL and stop
        in al,dx          ;port_B
        SCL_LO
        SDA_HI
