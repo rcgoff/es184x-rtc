@@ -1,9 +1,11 @@
 include dump.inc
 
 assume cs:_TEXT
-_TEXT segment word public 'CODE'
+_TEXT segment byte public 'CODE'
 
 public	argc
+public argv
+
 argc   proc    near
 ;command line argument count
 ;on call, ES:BX	points to command line
@@ -27,7 +29,7 @@ argc2: inc  bx	      ;point to	the next symbol
        jcxz argc2     ;jump back if it's an internal argument
 
        inc  ax	      ;inc if argument not found
-       not  cx	      ;set flag	to 'internal argument'...
+       inc  cx	      ;set flag	to 'internal argument'...
        jmp  argc2     ;...and proceed the next symbol
 
 argc3: pop  cx
@@ -36,7 +38,6 @@ argc3: pop  cx
 
 argc   endp
 
-public argv
 argv	proc	near
 			;get address and length of command line attributes
 			;on call, ES:BX = command line
@@ -63,7 +64,7 @@ argv2:	inc	bx	;next cmdline symbol
 	inc	ah	;otherwise update argument count
 	cmp	ah,al	;is it desirable argument?
 	je	argv4	;yes - count its length
-	not	cx	;no - set flag to 'inside argument'...
+	inc	cx	;no - set flag to 'inside argument'...
 	jmp	argv2	;...and continue scan
 
 argv4:			;determine argument length
@@ -78,10 +79,10 @@ argv5:	inc	bx	;next symbol
 
 argv6:	xchg	bx,ax	;set ES:BX to the beginning of arg
 	sub	ax,bx	;and AX=length of arg
-	jmp	argvx	;common exit
+	jmp	short argvx	;common exit
 
 argv7:	xor	ax,ax	;AX=0 if argument not found
-	jmp	argvx	;common exit
+	jmp	short argvx	;common exit
 
 argv8:			;special case if argument=0 on call
 	mov	ax,3000h;is it dos v3 or higher?

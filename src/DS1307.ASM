@@ -242,8 +242,7 @@ read_ds1307 proc near
 ;if error, carry is set
        xor bx,bx
        mov cx,7         ;read 7 bytes (00..06)
-       mov ah,11010000b ;dev addr-w (ds1307)
-       xor al,al        ;don't skip addr wrt
+       mov ax,11010000b SHL 8   ;ah=ds1307 addr-w,al=0 (not skip addr wrt)
        clc
        call read_i2c_device
        ret

@@ -89,22 +89,18 @@ i2c_stopreset proc near
                          ;detect I2C harness
        or  al,sda_out_mask       ;SDA=1
        out dx,al
-       inc dx            ;port_C
-       in al,dx
+       in al,port_c
        and al,sda_in_mask
        mov ah,al         ;keep 1st SDA read
-       dec dx            ;port_B
-       in al,dx
+       in al,dx          ;port_B
        and al,not sda_out_mask   ;SDA=0
        out dx,al
-       inc dx            ;port_C
-       in al,dx
+       in al,port_c
        and al,sda_in_mask
        xor ah,al         ;1 if harness exists
        jz no_harness
 ;at this point,AL=0 means non-inverted harness
-       dec dx            ;port_B
-       in al,dx
+       in al,dx          ;port_B
        SCL_LO
        SDA_HI
        mov cx,9
@@ -185,10 +181,10 @@ i2cwr_loop:
 ;to be able to check device presence.
        SCL_HI
        in  al,port_c     ;read acknowlege bit
+       and al,sda_in_mask
        mov ah,al
        in  al,dx         ;restore port values
        SCL_LO
-       and ah,sda_in_mask
        neg ah            ;1-ah, set CY if ACK<>0
        pop dx
        pop cx
