@@ -1,7 +1,3 @@
-;invert equ 1    ;1 if we need to invert SDA output (OC used)
-;--changed for MASM 4.0 from IF INVERT to IFDEF INVERT
-;--so, you should just un-comment the 1st line if you want to
-;  enable inversion with MASM 3
 ;i2c bus routines
 ;i2c device is connected to 8255 as follows:
 ;8255 port b (61h) bit 2 - SDA out
@@ -39,32 +35,14 @@ SCL_LO macro             ;fall SCL
        out dx,al
        endm
 
-SDA_HI macro             ;raise SDA
-ifdef invert
-       and al,not sda_out_mask
-else
-       or  al,sda_out_mask
-endif
-       out dx,al
-       endm
-
-SDA_LO macro             ;fall SDA
-ifdef invert
-       or  al,sda_out_mask
-else
-       and al,not sda_out_mask
-endif
-       out dx,al
-       endm
-
 I2C_STOP macro           ;issue stop condition
-       SDA_LO
+       call sda_lo
        SCL_HI
-       SDA_HI
+       call sda_hi
        endm
 
 I2C_START macro          ;issue start condition
-       SDA_LO
+       call sda_lo
        SCL_LO
        endm
 
@@ -112,7 +90,7 @@ i2c_stopreset proc near
 ;9 SCL and stop
        in al,dx          ;port_B
        SCL_LO
-       SDA_HI
+       call sda_hi
        mov cx,9
 scloop:
        SCL_HI
@@ -130,6 +108,25 @@ no_harness:
        stc
        jmp short stresexit
 i2c_stopreset endp
+
+sda_set proc near
+sda_lo:                          ;fall SDA
+       and al,not sda_out_mask   ;prepare 0
+       jmp short sda_set_common
+;       xor al,inversion_mask     ;if inv_mask=1 then inverted
+                                 ;0xor1=1 0xor0=0
+;       out dx,al
+;       ret
+
+sda_hi:                          ;raise SDA
+       or  al,sda_out_mask       ;prepare 1
+sda_set_common:
+       xor al,inversion_mask     ;if inv_mask=1 then inverted
+                                 ;1xor1=0 1xor0=1
+       out dx,al
+       ret
+
+sda_set endp
 
 
 i2cwr proc near
@@ -152,19 +149,17 @@ i2cwr proc near
        mov bl,al         ;save previous port with 0s at i2c pins
 
        mov cl,sda_out_position
-ifdef invert
+       test inversion_mask,sda_out_mask     ;return 1 if inverted
+       jz rdy_for_write
        not ah
-endif
-       rol ah,cl         ;now the highest bit for output to device
-                         ;is in proper position
-       mov cx,8          ;amount of bits to output
+rdy_for_write:
+       rol ah,cl         ;now the highest bit for output to device...
+                         ;...is in proper position
+       mov cx,8          ;number of bits to output
        popf
        jnc i2cwr_loop
-ifdef invert
-       or  al, scl_mask
-else
        or  al, (scl_mask or sda_out_mask)
-endif
+       xor al,inversion_mask    ;set sda_out_mask=0 if invert (1xor1=0)
        out dx,al         ;out idle state on i2c
        I2C_START
 i2cwr_loop:
@@ -176,19 +171,7 @@ i2cwr_loop:
        SCL_HI
        SCL_LO
        loop i2cwr_loop
-       SDA_HI
-;caveat programmer! If the hardware is non-inverting,
-;and we use inverting routine, then we will get "0"
-;as if we get proper ACK bit, even if device is absent.
-;But if we will always set SDA_OUT to 1, regardless of
-;the inversion settings, on inverting hardware we will
-;always get "0" as if we get proper ACK, even if device
-;is absent.
-;Proper way is to detect I2C harness, inverting or not,
-;by asserting 1 and 0 and reading the results.
-;Now I will put inversion-dependent check in assumption
-;that the pair (routine,hardware) is proper,
-;to be able to check device presence.
+       call sda_hi
        SCL_HI
        in  al,port_c     ;read acknowlege bit
        and al,sda_in_mask
@@ -215,13 +198,9 @@ i2crd proc near
        pushf
        mov dx,port_b
        in  al,dx
-ifdef invert
-       and ax,00ffh and not scl_mask
-else
-       and ax,00ffh and not (sda_out_mask or scl_mask)
-endif
-       mov cx,8          ;amount of bits to read
-       SDA_HI
+;       and ax,00ffh and not scl_mask
+       mov cx,8          ;number of bits to read
+       call sda_hi
 i2crd_loop:
        SCL_HI
        in  al,port_c     ;read next bit
@@ -233,7 +212,7 @@ i2crd_loop:
        loop i2crd_loop
        popf
        jc  rd_finshift   ;skip acknowlege byte if desired
-       SDA_LO            ;send acknowlege byte
+       call sda_lo       ;send acknowlege byte
 rd_finshift:
        SCL_HI            ;9th clock in both cases (ack vs no ack)
        SCL_LO
