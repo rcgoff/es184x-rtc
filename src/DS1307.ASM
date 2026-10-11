@@ -177,9 +177,8 @@ xxi_century:
        call write_i2c_device
        jc werr          ;exit with errorlevel 1 if error
        call check_running
+       jc werr
        jz norun         ;all digits are unchanged -> clock isn't running
-       cmp cx,1         ;if other digits than min and sec are differ,
-       ja werr          ;then DS1307 error
                         ;otherwise OK, print msg and normal exit
        xor al,al        ;errorlevel 0
        jmp short wexit
@@ -196,6 +195,7 @@ read_from_rtc proc near
        call read_ds1307
        jc rerr
        call check_running
+       jc rerr
        jz rnorun
 ;now let's get data in backward direction
        mov si,offset buf2+6
@@ -264,7 +264,7 @@ dloop: int 21h
        sub dh,bl
        jc add60
 dcmp:  cmp dh,2
-       jnz dloop
+       jb  dloop
        ret
 
 add60: add dh,60d
@@ -272,15 +272,21 @@ add60: add dh,60d
 delay_2sec endp
 
 check_running proc near
+;returns ZF if comparison results are the same (RTC isn't runnning)
+;returns CF if RTC read error
+;CX on returns shows the byte where comparison fails or 0 if all the same
        call delay_2sec
        mov di,offset buf2
        call read_ds1307
+       jc check_running_error
                         ;check if RTC is running, by comparison
        std              ;autodecrement
        mov cx,7         ;setup registers for string compare
        mov di,offset buf2+6
        mov si,offset buf1+6
        repe cmpsb       ;compare from year downto seconds
+       clc
+check_running_error:
        ret
 check_running endp
 
