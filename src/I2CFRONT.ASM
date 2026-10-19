@@ -114,6 +114,8 @@ last_read:
        call i2crd
        mov al,ah
        stosb
+       stc               ;stop condition
+       call i2c_stopreset
        clc
 i2crderr:                ;jump to i2crderr alays occurs by jc, so CF=1
        pop dx

@@ -79,28 +79,28 @@
  0036  1B ED                           sbb bp,bp         ;BP=Carry flag  (0 or FFh) 
  0038  F8                              clc 
  0039  E8 0000 E                       call i2c_stopreset 
- 003C  72 3A                           jc i2crderr 
+ 003C  72 3E                           jc i2crderr 
  003E  0A C0                           or al,al 
  0040  75 18                           jnz read 
  0042  F9                              stc 
  0043  E8 0000 E                       call i2cwr        ;send dev addr from AH 
- 0046  72 30                           jc i2crderr 
+ 0046  72 34                           jc i2crderr 
  0048  45                              inc bp            ;now BP=0 if CF was 1 
  0049  75 08                           jnz lowrdaddr     ;equals jnc by saved CF 
  004B  8A E7                           mov ah,bh         ;internal addr-h 
  004D  F8                              clc 
  004E  E8 0000 E                       call i2cwr 
- 0051  72 25                           jc i2crderr 
+ 0051  72 29                           jc i2crderr 
  0053                           lowrdaddr: 
  0053  8A E3                           mov ah,bl         ;internal addr-l 
  0055  E8 0000 E                       call i2cwr 
- 0058  72 1E                           jc i2crderr 
+ 0058  72 22                           jc i2crderr 
  005A                           read: 
  005A  8B C2                           mov ax,dx         ;recall i2c device addr 
  005C  FE C4                           inc ah            ;form 'read' command 
  005E  F9                              stc 
  005F  E8 0000 E                       call i2cwr 
- 0062  72 14                           jc i2crderr 
+ 0062  72 18                           jc i2crderr 
  0064  FC                              cld               ;autoincrement 
  0065  49                              dec cx 
  0066  74 08                           jz last_read 
@@ -114,15 +114,17 @@
  0071  E8 0000 E                       call i2crd 
  0074  8A C4                           mov al,ah 
  0076  AA                              stosb 
- 0077  F8                              clc 
- 0078                           i2crderr:                ;jump to i2crderr alays occurs by jc, so CF=1 
- 0078  5A                              pop dx 
- 0079  C3                              ret 
+ 0077  F9                              stc               ;stop condition 
+ 0078  E8 0000 E                       call i2c_stopreset 
+ 007B  F8                              clc 
+ 007C                           i2crderr:                ;jump to i2crderr alays occurs by jc, so CF=1 
+ 007C  5A                              pop dx 
+ 007D  C3                              ret 
                                 read_i2c_device endp 
                                  
                                 endif 
                                  
- 007A                           _TEXT ends 
+ 007E                           _TEXT ends 
                                  
                                 endif 
                                  
@@ -133,7 +135,7 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	007A	BYTE	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	007E	BYTE	PUBLIC	'CODE'
 
 Symbols:            
 
@@ -147,7 +149,7 @@ COM  . . . . . . . . . . . . . .  	Number	0001
 DEBUG  . . . . . . . . . . . . .  	Number	0000	
 
 I2CRD  . . . . . . . . . . . . .  	L NEAR	0000		External
-I2CRDERR . . . . . . . . . . . .  	L NEAR	0078	_TEXT
+I2CRDERR . . . . . . . . . . . .  	L NEAR	007C	_TEXT
 I2CWR  . . . . . . . . . . . . .  	L NEAR	0000		External
 I2CWRERR . . . . . . . . . . . .  	L NEAR	0031	_TEXT
 I2C_STOPRESET  . . . . . . . . .  	L NEAR	0000		External
@@ -157,13 +159,13 @@ LOWRADDR . . . . . . . . . . . .  	L NEAR	001A	_TEXT
 LOWRDADDR  . . . . . . . . . . .  	L NEAR	0053	_TEXT
 
 READ . . . . . . . . . . . . . .  	L NEAR	005A	_TEXT
-READ_I2C_DEVICE  . . . . . . . .  	N PROC	0033	_TEXT	Global	Length = 0047
+READ_I2C_DEVICE  . . . . . . . .  	N PROC	0033	_TEXT	Global	Length = 004B
 
 WRITE_I2C_DEVICE . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0033
 
 
-    181 Source  Lines
-    181 Total   Lines
+    183 Source  Lines
+    183 Total   Lines
      38 Symbols
 
       0 Warning Errors
