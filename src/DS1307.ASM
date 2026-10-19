@@ -207,7 +207,9 @@ read_from_rtc proc near
 xx_century:
        add ax,1900
        mov cx,ax        ;store year
-       FROM_BUFF
+       lodsb            ;read buff to AL
+       and al,7fh       ;clear DS3231 century byte
+       call bcd_to_bin
        mov dh,al        ;store month
        lodsw            ;read day, skip weekday
        call bcd_to_bin
@@ -305,9 +307,17 @@ bcd_to_bin      proc    near
 ;   Bcd_to_bin converts two bcd nibbles in al (value <= 99.) to
 ;   a binary representation in al
 ;   ah is destroyed
+;   if source is wrong, al=0ffh on exit
         db      0d4h
         db      10h             ;AAM with 10h base,ah=higher digit,al=lower one
+        cmp     al,10d          ;test for BCD digits validity
+        jae     bad_bcd
+        cmp     ah,10d
+        jae     bad_bcd
         aad                     ;bcd2bin in al, 00 in ah
+        ret
+bad_bcd:
+        mov     al,0ffh
         ret
 bcd_to_bin      endp
 
