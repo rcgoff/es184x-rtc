@@ -9,8 +9,9 @@
 ;for 82c55 chip, with its strong "1" output current,
 ;I2C device must be connected via OC gate or just a
 ;transistor tied to port B bit 2 (and inversion must be used!)
+;both inverted and non-inverted connection supported by this code
 
-;L.Yadrennikov jun, aug 2025, may, sep 2026
+;L.Yadrennikov jun, aug 2025, may, sep, oct 2026
 
 public i2cwr
 public i2crd
@@ -59,7 +60,7 @@ i2c_stopreset proc near
 ;and force i2c reset after undefined bus and/or device state
 ;or just generate STOP
 ;On call:
-;   CY clear - detect harness, 9 SCLs, then stop
+;   CY clear - detect harness, 2x9 SCLs, then stop
 ;   CY set   - Just stop
 ;On return:
 ;   CY set - no I2C harness
@@ -69,9 +70,21 @@ i2c_stopreset proc near
        mov dx,port_b
        in al,dx
        jc stopgen
-                         ;detect I2C harness
-       or  al,sda_out_mask       ;SDA=1
+       SCL_LO
+       or al,sda_out_mask
+                         ;do 9scl-and-stop twice with sda=1 and then with sda=0
+nine_scl_reset:
        out dx,al
+       mov cx,9
+scloop:
+       SCL_HI
+       SCL_LO
+       loop scloop
+       xor al,sda_out_mask
+       test al,sda_out_mask
+       jz nine_scl_reset
+       out dx,al
+                         ;detect I2C harness, now SDA physically=1
        in al,port_c
        and al,sda_in_mask
        mov ah,al         ;keep 1st SDA read
@@ -87,15 +100,7 @@ i2c_stopreset proc near
        sbb al,al                 ;AL=FFh means inverted harness
        and al,sda_out_mask       ;now 'AL XOR databit' ready for inv/noninv
        mov inversion_mask,al     ;keep it in memory
-;9 SCL and stop
        in al,dx          ;port_B
-       SCL_LO
-       call sda_hi
-       mov cx,9
-scloop:
-       SCL_HI
-       SCL_LO
-       loop scloop
 stopgen:
        I2C_STOP
 stresexit:
