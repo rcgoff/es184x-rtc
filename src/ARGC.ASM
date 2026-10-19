@@ -96,7 +96,8 @@ argv8:			;special case if argument=0 on call
 argv9:	repne scasb	;find prog.name as first '00' after all env. variables
 	scasb		;should be TWO zeroes (no scasw as can be odd addr)
 	jne	argv9	;continue loop if only one zero
-	add	di,2	;skip word count
+	inc	di
+        inc	di      ;skip word count
 	mov	bx,di	;save program name address
 	mov	cx,-1	;now determine progam name length...
 	repne scasb	;...by searcing the next zero byte

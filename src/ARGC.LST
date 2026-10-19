@@ -92,10 +92,10 @@
                                  
  0062  93                       argv6:	xchg	bx,ax	;set ES:BX to the beginning of arg 
  0063  2B C3                    	sub	ax,bx	;and AX=length of arg 
- 0065  EB 2B                    	jmp	short argvx	;common exit 
+ 0065  EB 2A                    	jmp	short argvx	;common exit 
                                  
  0067  33 C0                    argv7:	xor	ax,ax	;AX=0 if argument not found 
- 0069  EB 27                    	jmp	short argvx	;common exit 
+ 0069  EB 26                    	jmp	short argvx	;common exit 
                                  
  006B                           argv8:			;special case if argument=0 on call 
  006B  B8 3000                  	mov	ax,3000h;is it dos v3 or higher? 
@@ -109,28 +109,29 @@
  007E  F2/ AE                   argv9:	repne scasb	;find prog.name as first '00' after all env. variables 
  0080  AE                       	scasb		;should be TWO zeroes (no scasw as can be odd addr) 
  0081  75 FB                    	jne	argv9	;continue loop if only one zero 
- 0083  83 C7 02                 	add	di,2	;skip word count 
- 0086  8B DF                    	mov	bx,di	;save program name address 
- 0088  B9 FFFF                  	mov	cx,-1	;now determine progam name length... 
- 008B  F2/ AE                   	repne scasb	;...by searcing the next zero byte 
- 008D  F7 D1                    	not	cx	;get lengtn (rep counts downwards) 
- 008F  49                       	dec	cx 
- 0090  8B C1                    	mov	ax,cx	;return length in ax 
+ 0083  47                       	inc	di 
+ 0084  47                               inc	di      ;skip word count 
+ 0085  8B DF                    	mov	bx,di	;save program name address 
+ 0087  B9 FFFF                  	mov	cx,-1	;now determine progam name length... 
+ 008A  F2/ AE                   	repne scasb	;...by searcing the next zero byte 
+ 008C  F7 D1                    	not	cx	;get lengtn (rep counts downwards) 
+ 008E  49                       	dec	cx 
+ 008F  8B C1                    	mov	ax,cx	;return length in ax 
                                  
- 0092                           argvx:			;common exit 
- 0092  5F                       	pop	di 
- 0093  59                       	pop	cx 
- 0094  C3                       	ret 
+ 0091                           argvx:			;common exit 
+ 0091  5F                       	pop	di 
+ 0092  59                       	pop	cx 
+ 0093  C3                       	ret 
                                  
                                 argv	endp 
- 0095                           _TEXT ends 
+ 0094                           _TEXT ends 
                                  
                                 end 
 Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	0095	BYTE	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	0094	BYTE	PUBLIC	'CODE'
 
 Symbols:            
 
@@ -140,7 +141,7 @@ ARGC . . . . . . . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0024
 ARGC1  . . . . . . . . . . . . .  	L NEAR	0005	_TEXT
 ARGC2  . . . . . . . . . . . . .  	L NEAR	0008	_TEXT
 ARGC3  . . . . . . . . . . . . .  	L NEAR	0021	_TEXT
-ARGV . . . . . . . . . . . . . .  	N PROC	0024	_TEXT	Global	Length = 0071
+ARGV . . . . . . . . . . . . . .  	N PROC	0024	_TEXT	Global	Length = 0070
 ARGV1  . . . . . . . . . . . . .  	L NEAR	002C	_TEXT
 ARGV2  . . . . . . . . . . . . .  	L NEAR	002F	_TEXT
 ARGV4  . . . . . . . . . . . . .  	L NEAR	004D	_TEXT
@@ -149,7 +150,7 @@ ARGV6  . . . . . . . . . . . . .  	L NEAR	0062	_TEXT
 ARGV7  . . . . . . . . . . . . .  	L NEAR	0067	_TEXT
 ARGV8  . . . . . . . . . . . . .  	L NEAR	006B	_TEXT
 ARGV9  . . . . . . . . . . . . .  	L NEAR	007E	_TEXT
-ARGVX  . . . . . . . . . . . . .  	L NEAR	0092	_TEXT
+ARGVX  . . . . . . . . . . . . .  	L NEAR	0091	_TEXT
 
 BLANK  . . . . . . . . . . . . .  	Number	0020	
 BLKSIZE  . . . . . . . . . . . .  	Number	0010	
@@ -166,8 +167,8 @@ STDOUT . . . . . . . . . . . . .  	Number	0001
 TAB  . . . . . . . . . . . . . .  	Number	0009	
 
 
-    127 Source  Lines
-    128 Total   Lines
+    128 Source  Lines
+    129 Total   Lines
      46 Symbols
 
       0 Warning Errors
