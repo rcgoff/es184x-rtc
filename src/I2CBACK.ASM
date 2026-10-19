@@ -152,19 +152,14 @@ i2cwr proc near
 i2cwr_setup:
        and al,not (sda_out_mask or scl_mask)
        mov bl,al         ;save previous port with 0s at i2c pins
-
-       mov cl,sda_out_position
+       mov cx,8          ;bits to output
        test inversion_mask,sda_out_mask     ;return 1 if inverted
-       jz rdy_for_write
+       jz i2cwr_loop
        not ah
-rdy_for_write:
-       rol ah,cl         ;now the highest bit for output to device...
-                         ;...is in proper position
-       mov cx,8          ;number of bits to output
 i2cwr_loop:
-       rol ah,1
-       mov al,sda_out_mask
-       and al,ah         ;select proper bit
+       rol ah,1          ;next bit to CF
+       sbb al,al         ;al=0ffh if CF=next bit=1
+       and al,sda_out_mask   ;select proper bit
        or  al,bl         ;put proper DATA bit
        out dx,al         ;keep SCL low, out DATA
        SCL_HI
@@ -189,6 +184,7 @@ i2crd proc near
 ;On call:
 ;   CY clear - Generate acknowlege bit
 ;   CY set   - Don't generate acknowlege bit
+;   Assumed that SCL is LOW, device already selected
 ;On return:
 ;   AH - byte from I2C device
 ;   CY clear
