@@ -19,7 +19,7 @@
                                 ;On call: 
                                 ;   DS:SI - pointer to location of bytes to write 
                                 ;   BX - initial address into device 
-                                ;   CX - amount of bytes to write 
+                                ;   CX - number of bytes to write ( >0 ) 
                                 ;   CY clear - send 1-byte address to i2c 
                                 ;   CY set   - send 2-byte address to i2c 
                                 ;   AH - I2C device address 
@@ -27,51 +27,45 @@
                                 ;   CY clear - All OK 
                                 ;   CY set   - No acknowlege bit from device 
  0000  52                              push dx 
- 0001  8B D4                           mov dx,sp 
- 0003  9C                              pushf 
- 0004  F8                              clc               ;9 SCL, then stop 
- 0005  E8 0000 E                       call i2c_stopreset 
- 0008  72 2A                           jc i2cwrerr 
- 000A  F9                              stc 
- 000B  E8 0000 E                       call i2cwr        ;send dev addr from AH 
- 000E  72 24                           jc i2cwrerr 
- 0010  9D                              popf 
- 0011  73 08                           jnc lowraddr 
- 0013  8A E7                           mov ah,bh         ;internal addr-h 
- 0015  F8                              clc 
- 0016  E8 0000 E                       call i2cwr 
- 0019  72 19                           jc i2cwrerr 
- 001B                           lowraddr: 
- 001B  8A E3                           mov ah,bl         ;internal addr-l 
- 001D  E8 0000 E                       call i2cwr 
- 0020  72 12                           jc i2cwrerr 
- 0022  FC                              cld               ;autoincrement 
- 0023                           arraywr_loop: 
- 0023  AC                              lodsb 
- 0024  8A E0                           mov ah,al 
- 0026  E8 0000 E                       call i2cwr 
- 0029  72 09                           jc i2cwrerr 
- 002B  E2 F6                           loop arraywr_loop 
- 002D  F9                              stc               ;stop condition 
- 002E  E8 0000 E                       call i2c_stopreset 
+ 0001  1B D2                           sbb dx,dx         ;dx=CF (0 or FFh) 
+ 0003  F8                              clc               ;9 SCL, then stop 
+ 0004  E8 0000 E                       call i2c_stopreset 
+ 0007  72 28                           jc i2cwrerr 
+ 0009  F9                              stc 
+ 000A  E8 0000 E                       call i2cwr        ;send dev addr from AH 
+ 000D  72 22                           jc i2cwrerr 
+ 000F  42                              inc dx            ;dx=0 if CF on call was 1 
+ 0010  75 08                           jnz lowraddr      ;equivalent of jnc for CF-on-call 
+ 0012  8A E7                           mov ah,bh         ;internal addr-h 
+ 0014  F8                              clc 
+ 0015  E8 0000 E                       call i2cwr 
+ 0018  72 17                           jc i2cwrerr 
+ 001A                           lowraddr: 
+ 001A  8A E3                           mov ah,bl         ;internal addr-l 
+ 001C  E8 0000 E                       call i2cwr 
+ 001F  72 10                           jc i2cwrerr 
+ 0021  FC                              cld               ;autoincrement 
+ 0022                           arraywr_loop: 
+ 0022  AC                              lodsb 
+ 0023  8A E0                           mov ah,al 
+ 0025  E8 0000 E                       call i2cwr 
+ 0028  72 07                           jc i2cwrerr 
+ 002A  E2 F6                           loop arraywr_loop 
+ 002C  F9                              stc               ;stop condition 
+ 002D  E8 0000 E                       call i2c_stopreset 
+ 0030  F8                              clc 
+ 0031                           i2cwrerr:                ;jump to i2cwrerr alays occurs by jc, so CF=1 
  0031  5A                              pop dx 
- 0032  F8                              clc 
- 0033  C3                              ret 
-                                 
- 0034                           i2cwrerr: 
- 0034  8B E2                           mov sp,dx 
- 0036  5A                              pop dx 
- 0037  F9                              stc 
- 0038  C3                              ret 
+ 0032  C3                              ret 
                                 write_i2c_device endp 
                                  
- 0039                           read_i2c_device proc near 
+ 0033                           read_i2c_device proc near 
                                 ;Read byte array from I2C devices 
                                 ;(sequental read) 
                                 ;On call: 
                                 ;   ES:DI - pointer to location of read bytes 
                                 ;   BX - initial address into device 
-                                ;   CX - amount of bytes to read 
+                                ;   CX - number of bytes to read ( >0 ) 
                                 ;   CY clear - send 1-byte address to i2c 
                                 ;   CY set   - send 2-byte address to i2c 
                                 ;   AH - I2C device address 
@@ -80,61 +74,55 @@
                                 ;   CY clear - All OK 
                                 ;   CY set   - No acknowlege bit from device 
                                 ;   AX,BP destroyed 
- 0039  52                              push dx 
- 003A  8B D4                           mov dx,sp 
- 003C  50                              push ax 
- 003D  1B ED                           sbb bp,bp         ;BP=Carry flag  (0 or FFh) 
- 003F  F8                              clc 
- 0040  E8 0000 E                       call i2c_stopreset 
- 0043  72 3B                           jc i2crderr 
- 0045  0A C0                           or al,al 
- 0047  75 18                           jnz read 
- 0049  F9                              stc 
- 004A  E8 0000 E                       call i2cwr        ;send dev addr from AH 
- 004D  72 31                           jc i2crderr 
- 004F  45                              inc bp            ;now BP=0 if CF was 1 
- 0050  75 08                           jnz lowrdaddr     ;equals jnc by saved CF 
- 0052  8A E7                           mov ah,bh         ;internal addr-h 
- 0054  F8                              clc 
+ 0033  52                              push dx 
+ 0034  8B D0                           mov dx,ax 
+ 0036  1B ED                           sbb bp,bp         ;BP=Carry flag  (0 or FFh) 
+ 0038  F8                              clc 
+ 0039  E8 0000 E                       call i2c_stopreset 
+ 003C  72 3A                           jc i2crderr 
+ 003E  0A C0                           or al,al 
+ 0040  75 18                           jnz read 
+ 0042  F9                              stc 
+ 0043  E8 0000 E                       call i2cwr        ;send dev addr from AH 
+ 0046  72 30                           jc i2crderr 
+ 0048  45                              inc bp            ;now BP=0 if CF was 1 
+ 0049  75 08                           jnz lowrdaddr     ;equals jnc by saved CF 
+ 004B  8A E7                           mov ah,bh         ;internal addr-h 
+ 004D  F8                              clc 
+ 004E  E8 0000 E                       call i2cwr 
+ 0051  72 25                           jc i2crderr 
+ 0053                           lowrdaddr: 
+ 0053  8A E3                           mov ah,bl         ;internal addr-l 
  0055  E8 0000 E                       call i2cwr 
- 0058  72 26                           jc i2crderr 
- 005A                           lowrdaddr: 
- 005A  8A E3                           mov ah,bl         ;internal addr-l 
- 005C  E8 0000 E                       call i2cwr 
- 005F  72 1F                           jc i2crderr 
- 0061                           read: 
- 0061  58                              pop ax            ;recall i2c device addr 
- 0062  FE C4                           inc ah            ;form 'read' command 
- 0064  F9                              stc 
- 0065  E8 0000 E                       call i2cwr 
- 0068  72 16                           jc i2crderr 
- 006A  FC                              cld               ;autoincrement 
- 006B  49                              dec cx 
- 006C  74 08                           jz last_read 
- 006E                           arrayrd_loop: 
- 006E  E8 0000 E                       call i2crd 
- 0071  8A C4                           mov al,ah 
- 0073  AA                              stosb 
- 0074  E2 F8                           loop arrayrd_loop 
- 0076                           last_read: 
- 0076  F9                              stc 
- 0077  E8 0000 E                       call i2crd 
- 007A  8A C4                           mov al,ah 
- 007C  AA                              stosb 
- 007D  5A                              pop dx 
- 007E  F8                              clc 
- 007F  C3                              ret 
-                                 
- 0080                           i2crderr: 
- 0080  8B E2                           mov sp,dx 
- 0082  5A                              pop dx 
- 0083  F9                              stc 
- 0084  C3                              ret 
+ 0058  72 1E                           jc i2crderr 
+ 005A                           read: 
+ 005A  8B C2                           mov ax,dx         ;recall i2c device addr 
+ 005C  FE C4                           inc ah            ;form 'read' command 
+ 005E  F9                              stc 
+ 005F  E8 0000 E                       call i2cwr 
+ 0062  72 14                           jc i2crderr 
+ 0064  FC                              cld               ;autoincrement 
+ 0065  49                              dec cx 
+ 0066  74 08                           jz last_read 
+ 0068                           arrayrd_loop: 
+ 0068  E8 0000 E                       call i2crd 
+ 006B  8A C4                           mov al,ah 
+ 006D  AA                              stosb 
+ 006E  E2 F8                           loop arrayrd_loop 
+ 0070                           last_read: 
+ 0070  F9                              stc 
+ 0071  E8 0000 E                       call i2crd 
+ 0074  8A C4                           mov al,ah 
+ 0076  AA                              stosb 
+ 0077  F8                              clc 
+ 0078                           i2crderr:                ;jump to i2crderr alays occurs by jc, so CF=1 
+ 0078  5A                              pop dx 
+ 0079  C3                              ret 
                                 read_i2c_device endp 
                                  
                                 endif 
                                  
- 0085                           _TEXT ends 
+ 007A                           _TEXT ends 
                                  
                                 endif 
                                  
@@ -145,37 +133,37 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	0085	BYTE	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	007A	BYTE	PUBLIC	'CODE'
 
 Symbols:            
 
                 N a m e         	Type	Value	Attr         
 
-ARRAYRD_LOOP . . . . . . . . . .  	L NEAR	006E	_TEXT
-ARRAYWR_LOOP . . . . . . . . . .  	L NEAR	0023	_TEXT
+ARRAYRD_LOOP . . . . . . . . . .  	L NEAR	0068	_TEXT
+ARRAYWR_LOOP . . . . . . . . . .  	L NEAR	0022	_TEXT
 
 COM  . . . . . . . . . . . . . .  	Number	0001	
 
 DEBUG  . . . . . . . . . . . . .  	Number	0000	
 
 I2CRD  . . . . . . . . . . . . .  	L NEAR	0000		External
-I2CRDERR . . . . . . . . . . . .  	L NEAR	0080	_TEXT
+I2CRDERR . . . . . . . . . . . .  	L NEAR	0078	_TEXT
 I2CWR  . . . . . . . . . . . . .  	L NEAR	0000		External
-I2CWRERR . . . . . . . . . . . .  	L NEAR	0034	_TEXT
+I2CWRERR . . . . . . . . . . . .  	L NEAR	0031	_TEXT
 I2C_STOPRESET  . . . . . . . . .  	L NEAR	0000		External
 
-LAST_READ  . . . . . . . . . . .  	L NEAR	0076	_TEXT
-LOWRADDR . . . . . . . . . . . .  	L NEAR	001B	_TEXT
-LOWRDADDR  . . . . . . . . . . .  	L NEAR	005A	_TEXT
+LAST_READ  . . . . . . . . . . .  	L NEAR	0070	_TEXT
+LOWRADDR . . . . . . . . . . . .  	L NEAR	001A	_TEXT
+LOWRDADDR  . . . . . . . . . . .  	L NEAR	0053	_TEXT
 
-READ . . . . . . . . . . . . . .  	L NEAR	0061	_TEXT
-READ_I2C_DEVICE  . . . . . . . .  	N PROC	0039	_TEXT	Global	Length = 004C
+READ . . . . . . . . . . . . . .  	L NEAR	005A	_TEXT
+READ_I2C_DEVICE  . . . . . . . .  	N PROC	0033	_TEXT	Global	Length = 0047
 
-WRITE_I2C_DEVICE . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0039
+WRITE_I2C_DEVICE . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0033
 
 
-    193 Source  Lines
-    193 Total   Lines
+    181 Source  Lines
+    181 Total   Lines
      38 Symbols
 
       0 Warning Errors

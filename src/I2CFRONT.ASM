@@ -19,7 +19,7 @@ write_i2c_device proc near
 ;On call:
 ;   DS:SI - pointer to location of bytes to write
 ;   BX - initial address into device
-;   CX - amount of bytes to write
+;   CX - number of bytes to write ( >0 )
 ;   CY clear - send 1-byte address to i2c
 ;   CY set   - send 2-byte address to i2c
 ;   AH - I2C device address
@@ -27,16 +27,15 @@ write_i2c_device proc near
 ;   CY clear - All OK
 ;   CY set   - No acknowlege bit from device
        push dx
-       mov dx,sp
-       pushf
+       sbb dx,dx         ;dx=CF (0 or FFh)
        clc               ;9 SCL, then stop
        call i2c_stopreset
        jc i2cwrerr
        stc
        call i2cwr        ;send dev addr from AH
        jc i2cwrerr
-       popf
-       jnc lowraddr
+       inc dx            ;dx=0 if CF on call was 1
+       jnz lowraddr      ;equivalent of jnc for CF-on-call
        mov ah,bh         ;internal addr-h
        clc
        call i2cwr
@@ -54,14 +53,9 @@ arraywr_loop:
        loop arraywr_loop
        stc               ;stop condition
        call i2c_stopreset
-       pop dx
        clc
-       ret
-
-i2cwrerr:
-       mov sp,dx
+i2cwrerr:                ;jump to i2cwrerr alays occurs by jc, so CF=1
        pop dx
-       stc
        ret
 write_i2c_device endp
 
@@ -71,7 +65,7 @@ read_i2c_device proc near
 ;On call:
 ;   ES:DI - pointer to location of read bytes
 ;   BX - initial address into device
-;   CX - amount of bytes to read
+;   CX - number of bytes to read ( >0 )
 ;   CY clear - send 1-byte address to i2c
 ;   CY set   - send 2-byte address to i2c
 ;   AH - I2C device address
@@ -81,8 +75,7 @@ read_i2c_device proc near
 ;   CY set   - No acknowlege bit from device
 ;   AX,BP destroyed
        push dx
-       mov dx,sp
-       push ax
+       mov dx,ax
        sbb bp,bp         ;BP=Carry flag  (0 or FFh)
        clc
        call i2c_stopreset
@@ -103,7 +96,7 @@ lowrdaddr:
        call i2cwr
        jc i2crderr
 read:
-       pop ax            ;recall i2c device addr
+       mov ax,dx         ;recall i2c device addr
        inc ah            ;form 'read' command
        stc
        call i2cwr
@@ -121,14 +114,9 @@ last_read:
        call i2crd
        mov al,ah
        stosb
-       pop dx
        clc
-       ret
-
-i2crderr:
-       mov sp,dx
+i2crderr:                ;jump to i2crderr alays occurs by jc, so CF=1
        pop dx
-       stc
        ret
 read_i2c_device endp
 
