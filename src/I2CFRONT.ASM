@@ -2,7 +2,7 @@ debug  equ 0    ;1=debug mode (stand-alone program)
 com    equ 1    ;1 if com file
 ;i2c bus routines (Front-end)
 
-;L.Yadrennikov june-july 2025, sep 2026
+;L.Yadrennikov june-july 2025, sep-oct 2026
 
 public write_i2c_device
 public read_i2c_device
@@ -79,12 +79,11 @@ read_i2c_device proc near
 ;On return:
 ;   CY clear - All OK
 ;   CY set   - No acknowlege bit from device
-;   AX destroyed
+;   AX,BP destroyed
        push dx
        mov dx,sp
        push ax
-       pushf
-       pop bp
+       sbb bp,bp         ;BP=Carry flag  (0 or FFh)
        clc
        call i2c_stopreset
        jc i2crderr
@@ -93,9 +92,8 @@ read_i2c_device proc near
        stc
        call i2cwr        ;send dev addr from AH
        jc i2crderr
-       push bp
-       popf
-       jnc lowrdaddr
+       inc bp            ;now BP=0 if CF was 1
+       jnz lowrdaddr     ;equals jnc by saved CF
        mov ah,bh         ;internal addr-h
        clc
        call i2cwr

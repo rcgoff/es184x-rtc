@@ -142,9 +142,14 @@ i2cwr proc near
        push bx
        push cx
        push dx
-       pushf
        mov dx,port_b
        in  al,dx
+       jnc i2cwr_setup
+       or  al, (scl_mask or sda_out_mask)
+       xor al,inversion_mask    ;set sda_out_mask=0 if invert (1xor1=0)
+       out dx,al         ;out idle state on i2c
+       I2C_START
+i2cwr_setup:
        and al,not (sda_out_mask or scl_mask)
        mov bl,al         ;save previous port with 0s at i2c pins
 
@@ -156,12 +161,6 @@ rdy_for_write:
        rol ah,cl         ;now the highest bit for output to device...
                          ;...is in proper position
        mov cx,8          ;number of bits to output
-       popf
-       jnc i2cwr_loop
-       or  al, (scl_mask or sda_out_mask)
-       xor al,inversion_mask    ;set sda_out_mask=0 if invert (1xor1=0)
-       out dx,al         ;out idle state on i2c
-       I2C_START
 i2cwr_loop:
        rol ah,1
        mov al,sda_out_mask
