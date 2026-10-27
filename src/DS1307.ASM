@@ -308,11 +308,11 @@ bcd_to_bin      proc    near
 ;   a binary representation in al
 ;   ah is destroyed
 ;   if source is wrong, al=0ffh on exit
+        cmp  al,0a0h    ;test for higher BCD digit validity
+        jae  bad_bcd
         db   0d4h
         db   10h        ;AAM with 10h base,ah=higher digit,al=lower one
-        cmp  al,10d     ;test for BCD digits validity
-        jae  bad_bcd
-        cmp  ah,10d
+        cmp  al,10d     ;test for lower BCD digit validity
         jae  bad_bcd
         aad             ;bcd2bin in al, 00 in ah
         ret
