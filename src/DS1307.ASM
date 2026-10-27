@@ -222,9 +222,9 @@ xx_century:
        mov ch,al        ;store hours
        FROM_BUFF
        mov cl,al        ;store minutes
-       FROM_BUFF
-       cbw
-       mov dx,ax        ;store seconds
+       FROM_BUFF        ;get seconds in AL, AH=00 if OK
+       xchg al,ah       ;seconds in AH, 00 in AL
+       xchg dx,ax       ;store seconds in DH and hundreds of sec to 00 in DL
        mov ah,2dh
        int 21h          ;set time
        or al,al         ;0=valid time
@@ -306,7 +306,7 @@ bcd_to_bin      proc    near
 ;
 ;   Bcd_to_bin converts two bcd nibbles in al (value <= 99.) to
 ;   a binary representation in al
-;   ah is destroyed
+;   ah is set to 00h if conversion ok
 ;   if source is wrong, al=0ffh on exit
         cmp  al,0a0h    ;test for higher BCD digit validity
         jae  bad_bcd

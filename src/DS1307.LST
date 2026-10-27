@@ -240,11 +240,11 @@
  021B  AC                     1        lodsb
  021C  E8 027F R              1        call bcd_to_bin
  021F  8A C8                           mov cl,al        ;store minutes 
-                                       FROM_BUFF 
+                                       FROM_BUFF        ;get seconds in AL, AH=00 if OK 
  0221  AC                     1        lodsb
  0222  E8 027F R              1        call bcd_to_bin
- 0225  98                              cbw 
- 0226  8B D0                           mov dx,ax        ;store seconds 
+ 0225  86 C4                           xchg al,ah       ;seconds in AH, 00 in AL 
+ 0227  92                              xchg dx,ax       ;store seconds in DH and hundreds of sec to 00 in DL 
  0228  B4 2D                           mov ah,2dh 
  022A  CD 21                           int 21h          ;set time 
  022C  0A C0                           or al,al         ;0=valid time 
@@ -326,7 +326,7 @@
                                 ; 
                                 ;   Bcd_to_bin converts two bcd nibbles in al (value <= 99.) to 
                                 ;   a binary representation in al 
-                                ;   ah is destroyed 
+                                ;   ah is set to 00h if conversion ok 
                                 ;   if source is wrong, al=0ffh on exit 
  027F  3C A0                            cmp  al,0a0h    ;test for higher BCD digit validity 
  0281  73 09                            jae  bad_bcd 
