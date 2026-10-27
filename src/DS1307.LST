@@ -1,5 +1,5 @@
-                                ;Real-time clock set-reset based on DS1307 chip 
-                                ;L.Yadrennikov june-september 2025, sep 2026 
+                                ;Real-time clock set-reset based on DS1307/DS3231 chip 
+                                ;L.Yadrennikov june-september 2025, sep-oct 2026 
                                  
                                 ;DOS functions for time/date 
                                 ;int 21h, AH=2Ah. get system date. 
@@ -26,7 +26,7 @@
                                 ;2Dh (set time) returns: 
                                 ;AL=00 for valid time, FF for invalid. 
                                  
-                                ;time/date is stored in DS1307 as follows: 
+                                ;time/date is stored in DS1307 and DS3231 as follows: 
                                 ;The format is BCD 
                                 ;Byte - Value 
                                 ;0 Seconds (bit7=1 switches oscillator off) 
@@ -34,7 +34,7 @@
                                 ;2 Hours (bit6=1 12hour mode, if so, bit5=1 PM) 
                                 ;3 Day of week 
                                 ;4 Day of month 
-                                ;5 Month 
+                                ;5 Month (in DS3231 bit7=1 is century byte) 
                                 ;6 Year 
                                 ;7 Control word 
                                 ;8...3F - RAM. 
@@ -221,7 +221,7 @@
  01FA                           xx_century: 
  01FA  05 076C                         add ax,1900 
  01FD  8B C8                           mov cx,ax        ;store year 
- 01FF  AC                              lodsb            ;read buff to AL 
+ 01FF  AC                              lodsb            ;read month to AL 
  0200  24 7F                           and al,7fh       ;clear DS3231 century byte 
  0202  E8 027F R                       call bcd_to_bin 
  0205  8A F0                           mov dh,al        ;store month 
@@ -316,9 +316,9 @@
                                 ;Convert a binary input in AL (less than 63h or 99 decimal) 
                                 ;into a bcd value in AL.  AH destroyed. 
                                 ; 
- 027A  D4 0A                            aam                     ;ah=high digit bcd, al=low digit bcd 
- 027C  D5                               db      0d5h 
- 027D  10                               db      10h             ;it's AAD with 10h base,al=bcd digit, ah=0 
+ 027A  D4 0A                            aam             ;ah=high digit bcd, al=low digit bcd 
+ 027C  D5                               db   0d5h 
+ 027D  10                               db   10h        ;it's AAD with 10h base,al=bcd digit, ah=0 
  027E  C3                               ret 
                                 bin_to_bcd      endp 
                                  
@@ -328,16 +328,16 @@
                                 ;   a binary representation in al 
                                 ;   ah is destroyed 
                                 ;   if source is wrong, al=0ffh on exit 
- 027F  D4                               db      0d4h 
- 0280  10                               db      10h             ;AAM with 10h base,ah=higher digit,al=lower one 
- 0281  3C 0A                            cmp     al,10d          ;test for BCD digits validity 
- 0283  73 08                            jae     bad_bcd 
- 0285  80 FC 0A                         cmp     ah,10d 
- 0288  73 03                            jae     bad_bcd 
- 028A  D5 0A                            aad                     ;bcd2bin in al, 00 in ah 
+ 027F  D4                               db   0d4h 
+ 0280  10                               db   10h        ;AAM with 10h base,ah=higher digit,al=lower one 
+ 0281  3C 0A                            cmp  al,10d     ;test for BCD digits validity 
+ 0283  73 08                            jae  bad_bcd 
+ 0285  80 FC 0A                         cmp  ah,10d 
+ 0288  73 03                            jae  bad_bcd 
+ 028A  D5 0A                            aad             ;bcd2bin in al, 00 in ah 
  028C  C3                               ret 
  028D                           bad_bcd: 
- 028D  B0 FF                            mov     al,0ffh 
+ 028D  B0 FF                            mov  al,0ffh 
  028F  C3                               ret 
                                 bcd_to_bin      endp 
                                  

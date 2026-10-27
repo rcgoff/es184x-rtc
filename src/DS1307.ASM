@@ -1,5 +1,5 @@
-;Real-time clock set-reset based on DS1307 chip
-;L.Yadrennikov june-september 2025, sep 2026
+;Real-time clock set-reset based on DS1307/DS3231 chip
+;L.Yadrennikov june-september 2025, sep-oct 2026
 
 ;DOS functions for time/date
 ;int 21h, AH=2Ah. get system date.
@@ -26,7 +26,7 @@
 ;2Dh (set time) returns:
 ;AL=00 for valid time, FF for invalid.
 
-;time/date is stored in DS1307 as follows:
+;time/date is stored in DS1307 and DS3231 as follows:
 ;The format is BCD
 ;Byte - Value
 ;0 Seconds (bit7=1 switches oscillator off)
@@ -34,7 +34,7 @@
 ;2 Hours (bit6=1 12hour mode, if so, bit5=1 PM)
 ;3 Day of week
 ;4 Day of month
-;5 Month
+;5 Month (in DS3231 bit7=1 is century byte)
 ;6 Year
 ;7 Control word
 ;8...3F - RAM.
@@ -207,7 +207,7 @@ read_from_rtc proc near
 xx_century:
        add ax,1900
        mov cx,ax        ;store year
-       lodsb            ;read buff to AL
+       lodsb            ;read month to AL
        and al,7fh       ;clear DS3231 century byte
        call bcd_to_bin
        mov dh,al        ;store month
@@ -296,9 +296,9 @@ bin_to_bcd      proc    near
 ;Convert a binary input in AL (less than 63h or 99 decimal)
 ;into a bcd value in AL.  AH destroyed.
 ;
-        aam                     ;ah=high digit bcd, al=low digit bcd
-        db      0d5h
-        db      10h             ;it's AAD with 10h base,al=bcd digit, ah=0
+        aam             ;ah=high digit bcd, al=low digit bcd
+        db   0d5h
+        db   10h        ;it's AAD with 10h base,al=bcd digit, ah=0
         ret
 bin_to_bcd      endp
 
@@ -308,16 +308,16 @@ bcd_to_bin      proc    near
 ;   a binary representation in al
 ;   ah is destroyed
 ;   if source is wrong, al=0ffh on exit
-        db      0d4h
-        db      10h             ;AAM with 10h base,ah=higher digit,al=lower one
-        cmp     al,10d          ;test for BCD digits validity
-        jae     bad_bcd
-        cmp     ah,10d
-        jae     bad_bcd
-        aad                     ;bcd2bin in al, 00 in ah
+        db   0d4h
+        db   10h        ;AAM with 10h base,ah=higher digit,al=lower one
+        cmp  al,10d     ;test for BCD digits validity
+        jae  bad_bcd
+        cmp  ah,10d
+        jae  bad_bcd
+        aad             ;bcd2bin in al, 00 in ah
         ret
 bad_bcd:
-        mov     al,0ffh
+        mov  al,0ffh
         ret
 bcd_to_bin      endp
 
