@@ -81,26 +81,27 @@ get_cmd:
        je   check_todos
        db   3ch,fromdoslen   ;cmp  al,fromdoslen
        jne  synterr     ;error if argument length not match
-       mov  si,offset fromdos              ;for string compare
-       mov  ax,offset write_to_rtc         ;for future call
+       mov  di,offset fromdos              ;for string compare
+       mov  dx,offset write_to_rtc         ;for future call
        jmp  short arg_common
 check_todos:
-       mov  si,offset todos                ;for string compare
-       mov  ax,offset read_from_rtc        ;for future call
+       mov  di,offset todos                ;for string compare
+       mov  dx,offset read_from_rtc        ;for future call
 arg_common:             ;compare argument with proper strings
        cld              ;autoincrement
-       mov  di,bx       ;es:di points to argument in command line
+       mov  si,bx       ;es(=ds):si points to argument in command line
 argcmp1:                ;arg compare & convert to uppercase if necessary
-       cmp  byte ptr [di],'a'
+       lodsb            ;read 1 byte of cmd.line arg in al, inc si
+       cmp  al,'a'
        jb   argcmp2
-       cmp  byte ptr [di],'z'
+       cmp  al,'z'
        ja   argcmp2
-       sub  byte ptr [di],'a'-'A'
+       sub  al,'a'-'A'
 argcmp2:
-       cmpsb            ;compare 1 letter of arg with respect.pattern
+       scasb            ;compare 1 char of arg with respect.pattern, inc di
        jnz  synterr
        loop argcmp1
-       call ax          ;call selected subroutine, return errorlevel
+       call dx          ;call selected subroutine, return errorlevel
        or   ah,ah       ;check if it was reading w/errorlevel 0
        jnz  cexit       ;then quiet exit
 axprn: cbw

@@ -71,7 +71,7 @@
  0100  BB 0080                         mov  bx,offset cmd    ;ES:BX points to command tail 
  0103  E8 0000 E                       call argc        ;argument count 
  0106  3C 02                           cmp  al,2 
- 0108  75 5D                           jne  synterr     ;if not exactly 2 arguments, error and exit 
+ 0108  75 5B                           jne  synterr     ;if not exactly 2 arguments, error and exit 
  010A                           get_cmd: 
  010A  B8 0001                         mov  ax,1        ;AX - arg.number, ES:BX - command tail as before 
  010D  E8 0000 E                       call argv        ;returns addr in ES:BX and length in AX 
@@ -80,193 +80,194 @@
  0112  3C 06                           db   3ch,todoslen     ;cmp  al,todoslen 
  0114  74 0C                           je   check_todos 
  0116  3C 08                           db   3ch,fromdoslen   ;cmp  al,fromdoslen 
- 0118  75 4D                           jne  synterr     ;error if argument length not match 
- 011A  BE 028F R                       mov  si,offset fromdos              ;for string compare 
- 011D  B8 0173 R                       mov  ax,offset write_to_rtc         ;for future call 
+ 0118  75 4B                           jne  synterr     ;error if argument length not match 
+ 011A  BF 028D R                       mov  di,offset fromdos              ;for string compare 
+ 011D  BA 0171 R                       mov  dx,offset write_to_rtc         ;for future call 
  0120  EB 06                           jmp  short arg_common 
  0122                           check_todos: 
- 0122  BE 0289 R                       mov  si,offset todos                ;for string compare 
- 0125  B8 01D5 R                       mov  ax,offset read_from_rtc        ;for future call 
+ 0122  BF 0287 R                       mov  di,offset todos                ;for string compare 
+ 0125  BA 01D3 R                       mov  dx,offset read_from_rtc        ;for future call 
  0128                           arg_common:             ;compare argument with proper strings 
  0128  FC                              cld              ;autoincrement 
- 0129  8B FB                           mov  di,bx       ;es:di points to argument in command line 
+ 0129  8B F3                           mov  si,bx       ;es(=ds):si points to argument in command line 
  012B                           argcmp1:                ;arg compare & convert to uppercase if necessary 
- 012B  80 3D 61                        cmp  byte ptr [di],'a' 
- 012E  72 08                           jb   argcmp2 
- 0130  80 3D 7A                        cmp  byte ptr [di],'z' 
- 0133  77 03                           ja   argcmp2 
- 0135  80 2D 20                        sub  byte ptr [di],'a'-'A' 
- 0138                           argcmp2: 
- 0138  A6                              cmpsb            ;compare 1 letter of arg with respect.pattern 
- 0139  75 2C                           jnz  synterr 
- 013B  E2 EE                           loop argcmp1 
- 013D  FF D0                           call ax          ;call selected subroutine, return errorlevel 
- 013F  0A E4                           or   ah,ah       ;check if it was reading w/errorlevel 0 
- 0141  75 20                           jnz  cexit       ;then quiet exit 
- 0143  98                       axprn: cbw 
- 0144  8B D8                           mov bx,ax 
- 0146  D1 E3                           shl bx,1 
- 0148  8B 9F 016B R                    mov bx,offset msglist[bx] 
- 014C  8A 0F                           mov cl,[bx] 
- 014E  32 ED                           xor ch,ch 
- 0150  8B D3                           mov dx,bx 
- 0152  42                              inc dx 
- 0153  BB 0001                         mov  bx,stdout 
- 0156  0A C0                           or  al,al              ;check if errorlevel 0 
- 0158  74 03                           jz  printfnoerr        ;if yes, print to stdout 
- 015A  BB 0002                         mov  bx,stderr         ;std error handler 
- 015D                           printfnoerr: 
- 015D  B4 40                           mov  ah,40h            ;write function 
- 015F  50                              push ax                ;save errorlevel 
- 0160  CD 21                           int  21h               ;go to ms-dos 
- 0162  58                              pop ax 
- 0163  B4 4C                    cexit: mov ah,4ch 
- 0165  CD 21                           int 21h                ;quit, return to DOS 
+ 012B  AC                              lodsb            ;read 1 byte of cmd.line arg in al, inc si 
+ 012C  3C 61                           cmp  al,'a' 
+ 012E  72 06                           jb   argcmp2 
+ 0130  3C 7A                           cmp  al,'z' 
+ 0132  77 02                           ja   argcmp2 
+ 0134  2C 20                           sub  al,'a'-'A' 
+ 0136                           argcmp2: 
+ 0136  AE                              scasb            ;compare 1 char of arg with respect.pattern, inc di 
+ 0137  75 2C                           jnz  synterr 
+ 0139  E2 F0                           loop argcmp1 
+ 013B  FF D2                           call dx          ;call selected subroutine, return errorlevel 
+ 013D  0A E4                           or   ah,ah       ;check if it was reading w/errorlevel 0 
+ 013F  75 20                           jnz  cexit       ;then quiet exit 
+ 0141  98                       axprn: cbw 
+ 0142  8B D8                           mov bx,ax 
+ 0144  D1 E3                           shl bx,1 
+ 0146  8B 9F 0169 R                    mov bx,offset msglist[bx] 
+ 014A  8A 0F                           mov cl,[bx] 
+ 014C  32 ED                           xor ch,ch 
+ 014E  8B D3                           mov dx,bx 
+ 0150  42                              inc dx 
+ 0151  BB 0001                         mov  bx,stdout 
+ 0154  0A C0                           or  al,al              ;check if errorlevel 0 
+ 0156  74 03                           jz  printfnoerr        ;if yes, print to stdout 
+ 0158  BB 0002                         mov  bx,stderr         ;std error handler 
+ 015B                           printfnoerr: 
+ 015B  B4 40                           mov  ah,40h            ;write function 
+ 015D  50                              push ax                ;save errorlevel 
+ 015E  CD 21                           int  21h               ;go to ms-dos 
+ 0160  58                              pop ax 
+ 0161  B4 4C                    cexit: mov ah,4ch 
+ 0163  CD 21                           int 21h                ;quit, return to DOS 
                                  
- 0167                           synterr: 
- 0167  B0 03                           mov al,3 
- 0169  EB D8                           jmp short axprn 
+ 0165                           synterr: 
+ 0165  B0 03                           mov al,3 
+ 0167  EB D8                           jmp short axprn 
                                  
                                 ;error messages catalog 
- 016B                           msglist label word 
- 016B  02D0 R                          dw  oksetmsg 
- 016D  02FD R                          dw  i2cermsg 
- 016F  02DA R                          dw  norunmsg 
- 0171  0297 R                          dw  synterrmsg 
+ 0169                           msglist label word 
+ 0169  02CE R                          dw  oksetmsg 
+ 016B  02FB R                          dw  i2cermsg 
+ 016D  02D8 R                          dw  norunmsg 
+ 016F  0295 R                          dw  synterrmsg 
                                 select endp 
                                  
- 0173                           write_to_rtc proc near 
+ 0171                           write_to_rtc proc near 
                                 ;return errorlevel in AX 
- 0173  FC                              cld              ;autoincrement 
- 0174  BF 00E0                         mov di,offset buf1 
- 0177  B4 2C                           mov ah,2ch       ;get time 
- 0179  CD 21                           int 21h 
- 017B  8A C6                           mov al,dh        ;seconds 
+ 0171  FC                              cld              ;autoincrement 
+ 0172  BF 00E0                         mov di,offset buf1 
+ 0175  B4 2C                           mov ah,2ch       ;get time 
+ 0177  CD 21                           int 21h 
+ 0179  8A C6                           mov al,dh        ;seconds 
                                        TO_BUFF 
- 017D  E8 0274 R              1        call bin_to_bcd
- 0180  AA                     1        stosb
- 0181  8A C1                           mov al,cl        ;minutes 
+ 017B  E8 0272 R              1        call bin_to_bcd
+ 017E  AA                     1        stosb
+ 017F  8A C1                           mov al,cl        ;minutes 
                                        TO_BUFF 
- 0183  E8 0274 R              1        call bin_to_bcd
- 0186  AA                     1        stosb
- 0187  8A C5                           mov al,ch        ;hours 
+ 0181  E8 0272 R              1        call bin_to_bcd
+ 0184  AA                     1        stosb
+ 0185  8A C5                           mov al,ch        ;hours 
                                        TO_BUFF 
- 0189  E8 0274 R              1        call bin_to_bcd
- 018C  AA                     1        stosb
- 018D  B4 2A                           mov ah,2ah       ;get date 
- 018F  CD 21                           int 21h 
- 0191  0A C0                           or al,al         ;is week day sunday? 
- 0193  75 02                           jnz no_sunday 
- 0195  B0 07                           mov al,7 
- 0197                           no_sunday: 
- 0197  AA                              stosb            ;weekday, no bin2bcd necessary 
- 0198  8A C2                           mov al,dl        ;month day 
+ 0187  E8 0272 R              1        call bin_to_bcd
+ 018A  AA                     1        stosb
+ 018B  B4 2A                           mov ah,2ah       ;get date 
+ 018D  CD 21                           int 21h 
+ 018F  0A C0                           or al,al         ;is week day sunday? 
+ 0191  75 02                           jnz no_sunday 
+ 0193  B0 07                           mov al,7 
+ 0195                           no_sunday: 
+ 0195  AA                              stosb            ;weekday, no bin2bcd necessary 
+ 0196  8A C2                           mov al,dl        ;month day 
                                        TO_BUFF 
- 019A  E8 0274 R              1        call bin_to_bcd
- 019D  AA                     1        stosb
- 019E  8A C6                           mov al,dh        ;month 
+ 0198  E8 0272 R              1        call bin_to_bcd
+ 019B  AA                     1        stosb
+ 019C  8A C6                           mov al,dh        ;month 
                                        TO_BUFF 
- 01A0  E8 0274 R              1        call bin_to_bcd
- 01A3  AA                     1        stosb
- 01A4  8B C1                           mov ax,cx        ;year 
- 01A6  2D 07D0                         sub ax,2000 
- 01A9  73 02                           jnc xxi_century 
- 01AB  04 64                           add al,100 
- 01AD                           xxi_century: 
+ 019E  E8 0272 R              1        call bin_to_bcd
+ 01A1  AA                     1        stosb
+ 01A2  8B C1                           mov ax,cx        ;year 
+ 01A4  2D 07D0                         sub ax,2000 
+ 01A7  73 02                           jnc xxi_century 
+ 01A9  04 64                           add al,100 
+ 01AB                           xxi_century: 
                                        TO_BUFF 
- 01AD  E8 0274 R              1        call bin_to_bcd
- 01B0  AA                     1        stosb
+ 01AB  E8 0272 R              1        call bin_to_bcd
+ 01AE  AA                     1        stosb
                                  
- 01B1  BE 00E0                         mov si,offset buf1 
- 01B4  33 DB                           xor bx,bx 
- 01B6  B9 0007                         mov cx,7         ;write 7 bytes (00..06) 
- 01B9  B4 D0                           mov ah,11010000b ;dev addr-w (ds1307) 
- 01BB  F8                              clc 
- 01BC  E8 0000 E                       call write_i2c_device 
- 01BF  72 0F                           jc werr          ;exit with errorlevel 1 if error 
- 01C1  E8 025B R                       call check_running 
- 01C4  72 0A                           jc werr 
- 01C6  74 04                           jz norun         ;all digits are unchanged -> clock isn't running 
+ 01AF  BE 00E0                         mov si,offset buf1 
+ 01B2  33 DB                           xor bx,bx 
+ 01B4  B9 0007                         mov cx,7         ;write 7 bytes (00..06) 
+ 01B7  B4 D0                           mov ah,11010000b ;dev addr-w (ds1307) 
+ 01B9  F8                              clc 
+ 01BA  E8 0000 E                       call write_i2c_device 
+ 01BD  72 0F                           jc werr          ;exit with errorlevel 1 if error 
+ 01BF  E8 0259 R                       call check_running 
+ 01C2  72 0A                           jc werr 
+ 01C4  74 04                           jz norun         ;all digits are unchanged -> clock isn't running 
                                                         ;otherwise OK, print msg and normal exit 
- 01C8  32 C0                           xor al,al        ;errorlevel 0 
- 01CA  EB 06                           jmp short wexit 
- 01CC  B0 02                    norun: mov al,2 
- 01CE  EB 02                           jmp short wexit 
- 01D0  B0 01                    werr:  mov al,1 
- 01D2  32 E4                    wexit: xor ah,ah        ;non-quiet mode in all cases 
- 01D4  C3                              ret 
+ 01C6  32 C0                           xor al,al        ;errorlevel 0 
+ 01C8  EB 06                           jmp short wexit 
+ 01CA  B0 02                    norun: mov al,2 
+ 01CC  EB 02                           jmp short wexit 
+ 01CE  B0 01                    werr:  mov al,1 
+ 01D0  32 E4                    wexit: xor ah,ah        ;non-quiet mode in all cases 
+ 01D2  C3                              ret 
                                 write_to_rtc endp 
                                  
- 01D5                           read_from_rtc proc near 
- 01D5  FC                              cld              ;autoincrement 
- 01D6  BF 00E0                         mov di,offset buf1 
- 01D9  E8 0237 R                       call read_ds1307 
- 01DC  72 50                           jc rerr 
- 01DE  E8 025B R                       call check_running 
- 01E1  72 4B                           jc rerr 
- 01E3  74 4E                           jz rnorun 
+ 01D3                           read_from_rtc proc near 
+ 01D3  FC                              cld              ;autoincrement 
+ 01D4  BF 00E0                         mov di,offset buf1 
+ 01D7  E8 0235 R                       call read_ds1307 
+ 01DA  72 50                           jc rerr 
+ 01DC  E8 0259 R                       call check_running 
+ 01DF  72 4B                           jc rerr 
+ 01E1  74 4E                           jz rnorun 
                                 ;now let's get data in backward direction 
- 01E5  BE 00F6                         mov si,offset buf2+6 
+ 01E3  BE 00F6                         mov si,offset buf2+6 
                                        FROM_BUFF        ;get year 
- 01E8  AC                     1        lodsb
- 01E9  E8 0279 R              1        call bcd_to_bin
- 01EC  98                              cbw 
- 01ED  3C 50                           cmp al,80 
- 01EF  77 03                           ja xx_century 
- 01F1  05 0064                         add ax,100 
- 01F4                           xx_century: 
- 01F4  05 076C                         add ax,1900 
- 01F7  8B C8                           mov cx,ax        ;store year 
- 01F9  AC                              lodsb            ;read month to AL 
- 01FA  24 7F                           and al,7fh       ;clear DS3231 century byte 
- 01FC  E8 0279 R                       call bcd_to_bin 
- 01FF  8A F0                           mov dh,al        ;store month 
- 0201  AD                              lodsw            ;read day, skip weekday 
- 0202  E8 0279 R                       call bcd_to_bin 
- 0205  8A D0                           mov dl,al        ;store day 
- 0207  B4 2B                           mov ah,2bh 
- 0209  CD 21                           int 21h          ;set date 
- 020B  0A C0                           or al,al         ;0=valid date 
- 020D  75 1F                           jnz rerr 
+ 01E6  AC                     1        lodsb
+ 01E7  E8 0277 R              1        call bcd_to_bin
+ 01EA  98                              cbw 
+ 01EB  3C 50                           cmp al,80 
+ 01ED  77 03                           ja xx_century 
+ 01EF  05 0064                         add ax,100 
+ 01F2                           xx_century: 
+ 01F2  05 076C                         add ax,1900 
+ 01F5  8B C8                           mov cx,ax        ;store year 
+ 01F7  AC                              lodsb            ;read month to AL 
+ 01F8  24 7F                           and al,7fh       ;clear DS3231 century byte 
+ 01FA  E8 0277 R                       call bcd_to_bin 
+ 01FD  8A F0                           mov dh,al        ;store month 
+ 01FF  AD                              lodsw            ;read day, skip weekday 
+ 0200  E8 0277 R                       call bcd_to_bin 
+ 0203  8A D0                           mov dl,al        ;store day 
+ 0205  B4 2B                           mov ah,2bh 
+ 0207  CD 21                           int 21h          ;set date 
+ 0209  0A C0                           or al,al         ;0=valid date 
+ 020B  75 1F                           jnz rerr 
                                        FROM_BUFF 
- 020F  AC                     1        lodsb
- 0210  E8 0279 R              1        call bcd_to_bin
- 0213  8A E8                           mov ch,al        ;store hours 
+ 020D  AC                     1        lodsb
+ 020E  E8 0277 R              1        call bcd_to_bin
+ 0211  8A E8                           mov ch,al        ;store hours 
                                        FROM_BUFF 
- 0215  AC                     1        lodsb
- 0216  E8 0279 R              1        call bcd_to_bin
- 0219  8A C8                           mov cl,al        ;store minutes 
+ 0213  AC                     1        lodsb
+ 0214  E8 0277 R              1        call bcd_to_bin
+ 0217  8A C8                           mov cl,al        ;store minutes 
                                        FROM_BUFF        ;get seconds in AL, AH=00 if OK 
- 021B  AC                     1        lodsb
- 021C  E8 0279 R              1        call bcd_to_bin
- 021F  86 C4                           xchg al,ah       ;seconds in AH, 00 in AL 
- 0221  92                              xchg dx,ax       ;store seconds in DH and hundreds of sec to 00 in DL 
- 0222  B4 2D                           mov ah,2dh 
- 0224  CD 21                           int 21h          ;set time 
- 0226  0A C0                           or al,al         ;0=valid time 
- 0228  75 04                           jnz rerr         ;if not, mark an error 
- 022A  B4 01                           mov ah,1         ;otherwise mark "Qiet OK exit" 
- 022C  EB 08                           jmp short rexit 
- 022E  B8 0001                  rerr:  mov ax,0001h     ;otherwise exit with errorlevel 1 (rerr) 
- 0231  EB 03                           jmp short rexit 
- 0233                           rnorun: 
- 0233  B8 0002                         mov ax,0002h 
- 0236  C3                       rexit: ret 
+ 0219  AC                     1        lodsb
+ 021A  E8 0277 R              1        call bcd_to_bin
+ 021D  86 C4                           xchg al,ah       ;seconds in AH, 00 in AL 
+ 021F  92                              xchg dx,ax       ;store seconds in DH and hundreds of sec to 00 in DL 
+ 0220  B4 2D                           mov ah,2dh 
+ 0222  CD 21                           int 21h          ;set time 
+ 0224  0A C0                           or al,al         ;0=valid time 
+ 0226  75 04                           jnz rerr         ;if not, mark an error 
+ 0228  B4 01                           mov ah,1         ;otherwise mark "Qiet OK exit" 
+ 022A  EB 08                           jmp short rexit 
+ 022C  B8 0001                  rerr:  mov ax,0001h     ;otherwise exit with errorlevel 1 (rerr) 
+ 022F  EB 03                           jmp short rexit 
+ 0231                           rnorun: 
+ 0231  B8 0002                         mov ax,0002h 
+ 0234  C3                       rexit: ret 
                                 read_from_rtc endp 
                                  
- 0237                           read_ds1307 proc near 
+ 0235                           read_ds1307 proc near 
                                 ;read 7 bytes from addr 0 (date & time) 
                                 ;to address given in di 
                                 ;if error, carry is set 
- 0237  33 DB                           xor bx,bx 
- 0239  B9 0007                         mov cx,7         ;read 7 bytes (00..06) 
- 023C  B8 D000                         mov ax,11010000b SHL 8   ;ah=ds1307 addr-w,al=0 (not skip addr wrt) 
- 023F  F8                              clc 
- 0240  E8 0000 E                       call read_i2c_device 
- 0243  C3                              ret 
+ 0235  33 DB                           xor bx,bx 
+ 0237  B9 0007                         mov cx,7         ;read 7 bytes (00..06) 
+ 023A  B8 D000                         mov ax,11010000b SHL 8   ;ah=ds1307 addr-w,al=0 (not skip addr wrt) 
+ 023D  F8                              clc 
+ 023E  E8 0000 E                       call read_i2c_device 
+ 0241  C3                              ret 
                                 read_ds1307 endp 
                                  
- 0244                           delay_2sec proc near 
+ 0242                           delay_2sec proc near 
                                 ;wait for 2 sec to ensure that RTC is running 
                                 ;2 sec instead of 1 to prevent asyncronity... 
                                 ;...of PC and RTC seconds' change issues. 
@@ -275,75 +276,75 @@
                                 ;59->0->1     1-59=-58 
                                 ;58->59->0    0-58=-58 
                                 ;so, if we get negative number (check by JC),we should add 60 
- 0244  B4 2C                           mov ah,2ch 
- 0246  CD 21                           int 21h          ;get time,seconds in dh 
- 0248  8A DE                           mov bl,dh 
- 024A  CD 21                    dloop: int 21h 
- 024C  2A F3                           sub dh,bl 
- 024E  72 06                           jc add60 
- 0250  80 FE 02                 dcmp:  cmp dh,2 
- 0253  72 F5                           jb  dloop 
- 0255  C3                              ret 
+ 0242  B4 2C                           mov ah,2ch 
+ 0244  CD 21                           int 21h          ;get time,seconds in dh 
+ 0246  8A DE                           mov bl,dh 
+ 0248  CD 21                    dloop: int 21h 
+ 024A  2A F3                           sub dh,bl 
+ 024C  72 06                           jc add60 
+ 024E  80 FE 02                 dcmp:  cmp dh,2 
+ 0251  72 F5                           jb  dloop 
+ 0253  C3                              ret 
                                  
- 0256  80 C6 3C                 add60: add dh,60d 
- 0259  EB F5                           jmp short dcmp 
+ 0254  80 C6 3C                 add60: add dh,60d 
+ 0257  EB F5                           jmp short dcmp 
                                 delay_2sec endp 
                                  
- 025B                           check_running proc near 
+ 0259                           check_running proc near 
                                 ;returns ZF if comparison results are the same (RTC isn't runnning) 
                                 ;returns CF if RTC read error 
                                 ;CX on returns shows the byte where comparison fails or 0 if all the same 
- 025B  E8 0244 R                       call delay_2sec 
- 025E  BF 00F0                         mov di,offset buf2 
- 0261  E8 0237 R                       call read_ds1307 
- 0264  72 0D                           jc check_running_error 
+ 0259  E8 0242 R                       call delay_2sec 
+ 025C  BF 00F0                         mov di,offset buf2 
+ 025F  E8 0235 R                       call read_ds1307 
+ 0262  72 0D                           jc check_running_error 
                                                         ;check if RTC is running, by comparison 
- 0266  FD                              std              ;autodecrement 
- 0267  B9 0007                         mov cx,7         ;setup registers for string compare 
- 026A  BF 00F6                         mov di,offset buf2+6 
- 026D  BE 00E6                         mov si,offset buf1+6 
- 0270  F3/ A6                          repe cmpsb       ;compare from year downto seconds 
- 0272  F8                              clc 
- 0273                           check_running_error: 
- 0273  C3                              ret 
+ 0264  FD                              std              ;autodecrement 
+ 0265  B9 0007                         mov cx,7         ;setup registers for string compare 
+ 0268  BF 00F6                         mov di,offset buf2+6 
+ 026B  BE 00E6                         mov si,offset buf1+6 
+ 026E  F3/ A6                          repe cmpsb       ;compare from year downto seconds 
+ 0270  F8                              clc 
+ 0271                           check_running_error: 
+ 0271  C3                              ret 
                                 check_running endp 
                                  
- 0274                           bin_to_bcd      proc    near 
+ 0272                           bin_to_bcd      proc    near 
                                 ;Convert a binary input in AL (less than 63h or 99 decimal) 
                                 ;into a bcd value in AL.  AH destroyed. 
                                 ; 
- 0274  D4 0A                            aam             ;ah=high digit bcd, al=low digit bcd 
- 0276  D5                               db   0d5h 
- 0277  10                               db   10h        ;it's AAD with 10h base,al=bcd digit, ah=0 
- 0278  C3                               ret 
+ 0272  D4 0A                            aam             ;ah=high digit bcd, al=low digit bcd 
+ 0274  D5                               db   0d5h 
+ 0275  10                               db   10h        ;it's AAD with 10h base,al=bcd digit, ah=0 
+ 0276  C3                               ret 
                                 bin_to_bcd      endp 
                                  
- 0279                           bcd_to_bin      proc    near 
+ 0277                           bcd_to_bin      proc    near 
                                 ; 
                                 ;   Bcd_to_bin converts two bcd nibbles in al (value <= 99.) to 
                                 ;   a binary representation in al 
                                 ;   ah is set to 00h if conversion ok 
                                 ;   if source is wrong, al=0ffh on exit 
- 0279  3C A0                            cmp  al,0a0h    ;test for higher BCD digit validity 
- 027B  73 09                            jae  bad_bcd 
- 027D  D4                               db   0d4h 
- 027E  10                               db   10h        ;AAM with 10h base,ah=higher digit,al=lower one 
- 027F  3C 0A                            cmp  al,10d     ;test for lower BCD digit validity 
- 0281  73 03                            jae  bad_bcd 
- 0283  D5 0A                            aad             ;bcd2bin in al, 00 in ah 
- 0285  C3                               ret 
- 0286                           bad_bcd: 
- 0286  B0 FF                            mov  al,0ffh 
- 0288  C3                               ret 
+ 0277  3C A0                            cmp  al,0a0h    ;test for higher BCD digit validity 
+ 0279  73 09                            jae  bad_bcd 
+ 027B  D4                               db   0d4h 
+ 027C  10                               db   10h        ;AAM with 10h base,ah=higher digit,al=lower one 
+ 027D  3C 0A                            cmp  al,10d     ;test for lower BCD digit validity 
+ 027F  73 03                            jae  bad_bcd 
+ 0281  D5 0A                            aad             ;bcd2bin in al, 00 in ah 
+ 0283  C3                               ret 
+ 0284                           bad_bcd: 
+ 0284  B0 FF                            mov  al,0ffh 
+ 0286  C3                               ret 
                                 bcd_to_bin      endp 
                                  
- 0289  2F 54 4F 44 4F 53        todos    db '/TODOS' 
+ 0287  2F 54 4F 44 4F 53        todos    db '/TODOS' 
  = 0006                         todoslen = $-todos 
- 028F  2F 46 52 4F 4D 44 4F     fromdos  db '/FROMDOS' 
+ 028D  2F 46 52 4F 4D 44 4F     fromdos  db '/FROMDOS' 
        53                       
  = 0008                         fromdoslen = $-fromdos 
- 0297  38                       synterrmsg db synterrmsglen 
- 0298  53 79 6E 74 61 78 20              db 'Syntax error, usage: DS1307 /todos or DS1307 /fromdos',cr,lf,lf 
+ 0295  38                       synterrmsg db synterrmsglen 
+ 0296  53 79 6E 74 61 78 20              db 'Syntax error, usage: DS1307 /todos or DS1307 /fromdos',cr,lf,lf 
        65 72 72 6F 72 2C 20     
        75 73 61 67 65 3A 20     
        44 53 31 33 30 37 20     
@@ -352,24 +353,24 @@
        30 37 20 2F 66 72 6F     
        6D 64 6F 73 0D 0A 0A     
  = 0038                         synterrmsglen = $-synterrmsg-1 
- 02D0  09                       oksetmsg db oksetmsglen 
- 02D1  52 54 43 20 4F 4B 0D              db 'RTC OK',cr,lf,lf 
+ 02CE  09                       oksetmsg db oksetmsglen 
+ 02CF  52 54 43 20 4F 4B 0D              db 'RTC OK',cr,lf,lf 
        0A 0A                    
  = 0009                         oksetmsglen = $-oksetmsg-1 
- 02DA  22                       norunmsg db norunmsglen 
- 02DB  52 54 43 20 69 73 6E              db "RTC isn't running (bad quartz?)",cr,lf,lf 
+ 02D8  22                       norunmsg db norunmsglen 
+ 02D9  52 54 43 20 69 73 6E              db "RTC isn't running (bad quartz?)",cr,lf,lf 
        27 74 20 72 75 6E 6E     
        69 6E 67 20 28 62 61     
        64 20 71 75 61 72 74     
        7A 3F 29 0D 0A 0A        
  = 0022                         norunmsglen = $-norunmsg-1 
- 02FD  15                       i2cermsg db i2cermsglen 
- 02FE  52 54 43 3A 20 49 32              db "RTC: I2C bus error",cr,lf,lf 
+ 02FB  15                       i2cermsg db i2cermsglen 
+ 02FC  52 54 43 3A 20 49 32              db "RTC: I2C bus error",cr,lf,lf 
        43 20 62 75 73 20 65     
        72 72 6F 72 0D 0A 0A     
  = 0015                         i2cermsglen = $-i2cermsg-1 
                                  
- 0313                           _TEXT ends 
+ 0311                           _TEXT ends 
                                  
                                 end select 
 
@@ -384,87 +385,87 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	0313	WORD	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	0311	WORD	PUBLIC	'CODE'
 
 Symbols:            
 
                 N a m e         	Type	Value	Attr         
 
-ADD60  . . . . . . . . . . . . .  	L NEAR	0256	_TEXT
+ADD60  . . . . . . . . . . . . .  	L NEAR	0254	_TEXT
 ARGC . . . . . . . . . . . . . .  	L NEAR	0000		External
 ARGCMP1  . . . . . . . . . . . .  	L NEAR	012B	_TEXT
-ARGCMP2  . . . . . . . . . . . .  	L NEAR	0138	_TEXT
+ARGCMP2  . . . . . . . . . . . .  	L NEAR	0136	_TEXT
 ARGV . . . . . . . . . . . . . .  	L NEAR	0000		External
 ARG_COMMON . . . . . . . . . . .  	L NEAR	0128	_TEXT
-AXPRN  . . . . . . . . . . . . .  	L NEAR	0143	_TEXT
+AXPRN  . . . . . . . . . . . . .  	L NEAR	0141	_TEXT
 
-BAD_BCD  . . . . . . . . . . . .  	L NEAR	0286	_TEXT
-BCD_TO_BIN . . . . . . . . . . .  	N PROC	0279	_TEXT	Length = 0010
-BIN_TO_BCD . . . . . . . . . . .  	N PROC	0274	_TEXT	Length = 0005
+BAD_BCD  . . . . . . . . . . . .  	L NEAR	0284	_TEXT
+BCD_TO_BIN . . . . . . . . . . .  	N PROC	0277	_TEXT	Length = 0010
+BIN_TO_BCD . . . . . . . . . . .  	N PROC	0272	_TEXT	Length = 0005
 BUF1 . . . . . . . . . . . . . .  	Number	00E0	
 BUF2 . . . . . . . . . . . . . .  	Number	00F0	
 
-CEXIT  . . . . . . . . . . . . .  	L NEAR	0163	_TEXT
-CHECK_RUNNING  . . . . . . . . .  	N PROC	025B	_TEXT	Length = 0019
-CHECK_RUNNING_ERROR  . . . . . .  	L NEAR	0273	_TEXT
+CEXIT  . . . . . . . . . . . . .  	L NEAR	0161	_TEXT
+CHECK_RUNNING  . . . . . . . . .  	N PROC	0259	_TEXT	Length = 0019
+CHECK_RUNNING_ERROR  . . . . . .  	L NEAR	0271	_TEXT
 CHECK_TODOS  . . . . . . . . . .  	L NEAR	0122	_TEXT
 CMD  . . . . . . . . . . . . . .  	Number	0080	
 CR . . . . . . . . . . . . . . .  	Number	000D	
 
-DCMP . . . . . . . . . . . . . .  	L NEAR	0250	_TEXT
-DELAY_2SEC . . . . . . . . . . .  	N PROC	0244	_TEXT	Length = 0017
-DLOOP  . . . . . . . . . . . . .  	L NEAR	024A	_TEXT
+DCMP . . . . . . . . . . . . . .  	L NEAR	024E	_TEXT
+DELAY_2SEC . . . . . . . . . . .  	N PROC	0242	_TEXT	Length = 0017
+DLOOP  . . . . . . . . . . . . .  	L NEAR	0248	_TEXT
 
-FROMDOS  . . . . . . . . . . . .  	L BYTE 	028F	_TEXT
+FROMDOS  . . . . . . . . . . . .  	L BYTE 	028D	_TEXT
 FROMDOSLEN . . . . . . . . . . .  	Number	0008	
 
 GET_CMD  . . . . . . . . . . . .  	L NEAR	010A	_TEXT
 
-I2CERMSG . . . . . . . . . . . .  	L BYTE 	02FD	_TEXT
+I2CERMSG . . . . . . . . . . . .  	L BYTE 	02FB	_TEXT
 I2CERMSGLEN  . . . . . . . . . .  	Number	0015	
 
 LF . . . . . . . . . . . . . . .  	Number	000A	
 
-MSGLIST  . . . . . . . . . . . .  	L WORD 	016B	_TEXT
+MSGLIST  . . . . . . . . . . . .  	L WORD 	0169	_TEXT
 
-NORUN  . . . . . . . . . . . . .  	L NEAR	01CC	_TEXT
-NORUNMSG . . . . . . . . . . . .  	L BYTE 	02DA	_TEXT
+NORUN  . . . . . . . . . . . . .  	L NEAR	01CA	_TEXT
+NORUNMSG . . . . . . . . . . . .  	L BYTE 	02D8	_TEXT
 NORUNMSGLEN  . . . . . . . . . .  	Number	0022	
-NO_SUNDAY  . . . . . . . . . . .  	L NEAR	0197	_TEXT
+NO_SUNDAY  . . . . . . . . . . .  	L NEAR	0195	_TEXT
 
-OKSETMSG . . . . . . . . . . . .  	L BYTE 	02D0	_TEXT
+OKSETMSG . . . . . . . . . . . .  	L BYTE 	02CE	_TEXT
 OKSETMSGLEN  . . . . . . . . . .  	Number	0009	
 
-PRINTFNOERR  . . . . . . . . . .  	L NEAR	015D	_TEXT
+PRINTFNOERR  . . . . . . . . . .  	L NEAR	015B	_TEXT
 
-READ_DS1307  . . . . . . . . . .  	N PROC	0237	_TEXT	Length = 000D
-READ_FROM_RTC  . . . . . . . . .  	N PROC	01D5	_TEXT	Length = 0062
+READ_DS1307  . . . . . . . . . .  	N PROC	0235	_TEXT	Length = 000D
+READ_FROM_RTC  . . . . . . . . .  	N PROC	01D3	_TEXT	Length = 0062
 READ_I2C_DEVICE  . . . . . . . .  	L NEAR	0000		External
-RERR . . . . . . . . . . . . . .  	L NEAR	022E	_TEXT
-REXIT  . . . . . . . . . . . . .  	L NEAR	0236	_TEXT
-RNORUN . . . . . . . . . . . . .  	L NEAR	0233	_TEXT
+RERR . . . . . . . . . . . . . .  	L NEAR	022C	_TEXT
+REXIT  . . . . . . . . . . . . .  	L NEAR	0234	_TEXT
+RNORUN . . . . . . . . . . . . .  	L NEAR	0231	_TEXT
 
-SELECT . . . . . . . . . . . . .  	N PROC	0100	_TEXT	Length = 0073
+SELECT . . . . . . . . . . . . .  	N PROC	0100	_TEXT	Length = 0071
 STDERR . . . . . . . . . . . . .  	Number	0002	
 STDOUT . . . . . . . . . . . . .  	Number	0001	
-SYNTERR  . . . . . . . . . . . .  	L NEAR	0167	_TEXT
-SYNTERRMSG . . . . . . . . . . .  	L BYTE 	0297	_TEXT
+SYNTERR  . . . . . . . . . . . .  	L NEAR	0165	_TEXT
+SYNTERRMSG . . . . . . . . . . .  	L BYTE 	0295	_TEXT
 SYNTERRMSGLEN  . . . . . . . . .  	Number	0038	
 
-TODOS  . . . . . . . . . . . . .  	L BYTE 	0289	_TEXT
+TODOS  . . . . . . . . . . . . .  	L BYTE 	0287	_TEXT
 TODOSLEN . . . . . . . . . . . .  	Number	0006	
 
-WERR . . . . . . . . . . . . . .  	L NEAR	01D0	_TEXT
-WEXIT  . . . . . . . . . . . . .  	L NEAR	01D2	_TEXT
+WERR . . . . . . . . . . . . . .  	L NEAR	01CE	_TEXT
+WEXIT  . . . . . . . . . . . . .  	L NEAR	01D0	_TEXT
 WRITE_I2C_DEVICE . . . . . . . .  	L NEAR	0000		External
-WRITE_TO_RTC . . . . . . . . . .  	N PROC	0173	_TEXT	Length = 0062
+WRITE_TO_RTC . . . . . . . . . .  	N PROC	0171	_TEXT	Length = 0062
 
-XXI_CENTURY  . . . . . . . . . .  	L NEAR	01AD	_TEXT
-XX_CENTURY . . . . . . . . . . .  	L NEAR	01F4	_TEXT
+XXI_CENTURY  . . . . . . . . . .  	L NEAR	01AB	_TEXT
+XX_CENTURY . . . . . . . . . . .  	L NEAR	01F2	_TEXT
 
 
-    339 Source  Lines
-    369 Total   Lines
+    340 Source  Lines
+    370 Total   Lines
      80 Symbols
 
       0 Warning Errors
