@@ -1,5 +1,5 @@
 ;Real-time clock set-reset based on DS1307/DS3231 chip
-;L.Yadrennikov june-september 2025, sep-oct 2026
+;L.Yadrennikov june-september 2025, sep-nov 2026
 
 ;DOS functions for time/date
 ;int 21h, AH=2Ah. get system date.
@@ -75,20 +75,8 @@ select proc near
 get_cmd:
        mov  ax,1        ;AX - arg.number, ES:BX - command tail as before
        call argv        ;returns addr in ES:BX and length in AX
-                        ;convert argument to uppercase
-       mov  cx,ax
-       mov  si,bx
-ucase1:
-       cmp  byte ptr [si],'a'
-       jb   ucase2
-       cmp  byte ptr [si],'z'
-       ja   ucase2
-       sub  byte ptr [si],'a'-'A'
-ucase2:
-       inc  si
-       loop ucase1
                         ;check for argument correctness
-       mov  cx,ax       ;setup registers for string compare
+       mov  cx,ax       ;length to cx for future string compare
        db   3ch,todoslen     ;cmp  al,todoslen
        je   check_todos
        db   3ch,fromdoslen   ;cmp  al,fromdoslen
@@ -101,9 +89,17 @@ check_todos:
        mov  ax,offset read_from_rtc        ;for future call
 arg_common:             ;compare argument with proper strings
        cld              ;autoincrement
-       mov  di,bx       ;setup registers for string compare
-       repe cmpsb
+       mov  di,bx       ;es:di points to argument in command line
+argcmp1:                ;arg compare & convert to uppercase if necessary
+       cmp  byte ptr [di],'a'
+       jb   argcmp2
+       cmp  byte ptr [di],'z'
+       ja   argcmp2
+       sub  byte ptr [di],'a'-'A'
+argcmp2:
+       cmpsb            ;compare 1 letter of arg with respect.pattern
        jnz  synterr
+       loop argcmp1
        call ax          ;call selected subroutine, return errorlevel
        or   ah,ah       ;check if it was reading w/errorlevel 0
        jnz  cexit       ;then quiet exit
