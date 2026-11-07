@@ -77,16 +77,15 @@ get_cmd:
        call argv        ;returns addr in ES:BX and length in AX
                         ;check for argument correctness
        mov  cx,ax       ;length to cx for future string compare
-       db   3ch,todoslen     ;cmp  al,todoslen
-       je   check_todos
-       db   3ch,fromdoslen   ;cmp  al,fromdoslen
-       jne  synterr     ;error if argument length not match
-       mov  di,offset fromdos              ;for string compare
-       mov  dx,offset write_to_rtc         ;for future call
-       jmp  short arg_common
-check_todos:
        mov  di,offset todos                ;for string compare
        mov  dx,offset read_from_rtc        ;for future call
+       db   3ch,todoslen     ;cmp  al,todoslen
+       je   arg_common
+                        ;if not todos,check fromdos
+       mov  di,offset fromdos              ;for string compare
+       mov  dx,offset write_to_rtc         ;for future call
+       db   3ch,fromdoslen   ;cmp  al,fromdoslen
+       jne  synterr     ;error if argument length not match
 arg_common:             ;compare argument with proper strings
        cld              ;autoincrement
        mov  si,bx       ;es(=ds):si points to argument in command line
