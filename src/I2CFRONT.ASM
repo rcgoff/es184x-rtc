@@ -2,7 +2,7 @@ debug  equ 0    ;1=debug mode (stand-alone program)
 com    equ 1    ;1 if com file
 ;i2c bus routines (Front-end)
 
-;L.Yadrennikov june-july 2025, sep-oct 2026
+;L.Yadrennikov june-july 2025, sep-nov 2026
 
 public write_i2c_device
 public read_i2c_device
@@ -33,28 +33,31 @@ write_i2c_device proc near
        jc i2cwrerr
        stc
        call i2cwr        ;send dev addr from AH
-       jc i2cwrerr
+       jc i2cwrerr2
        inc dx            ;dx=0 if CF on call was 1
        jnz lowraddr      ;equivalent of jnc for CF-on-call
        mov ah,bh         ;internal addr-h
        clc
        call i2cwr
-       jc i2cwrerr
+       jc i2cwrerr2
 lowraddr:
        mov ah,bl         ;internal addr-l
        call i2cwr
-       jc i2cwrerr
+       jc i2cwrerr2
        cld               ;autoincrement
 arraywr_loop:
        lodsb
        mov ah,al
        call i2cwr
-       jc i2cwrerr
+       jc i2cwrerr2
        loop arraywr_loop
+       clc               ;CF=0 is "no errors" flag
+i2cwrerr2:               ;jump on NACK error always occurs by jc, so CF=1
+       pushf
        stc               ;stop condition
        call i2c_stopreset
-       clc
-i2cwrerr:                ;jump to i2cwrerr alays occurs by jc, so CF=1
+       popf
+i2cwrerr:
        pop dx
        ret
 write_i2c_device endp
@@ -84,23 +87,23 @@ read_i2c_device proc near
        jnz read
        stc
        call i2cwr        ;send dev addr from AH
-       jc i2crderr
+       jc i2crderr2
        inc bp            ;now BP=0 if CF was 1
        jnz lowrdaddr     ;equals jnc by saved CF
        mov ah,bh         ;internal addr-h
        clc
        call i2cwr
-       jc i2crderr
+       jc i2crderr2
 lowrdaddr:
        mov ah,bl         ;internal addr-l
        call i2cwr
-       jc i2crderr
+       jc i2crderr2
 read:
        mov ax,dx         ;recall i2c device addr
        inc ah            ;form 'read' command
        stc
        call i2cwr
-       jc i2crderr
+       jc i2crderr2
        cld               ;autoincrement
        dec cx
        jz last_read
@@ -114,12 +117,16 @@ last_read:
        call i2crd
        mov al,ah
        stosb
+       clc               ;CF=0 is "no errors" flag
+i2crderr2:               ;jump on NACK error always occurs by jc, so CF=1
+       pushf
        stc               ;stop condition
        call i2c_stopreset
-       clc
-i2crderr:                ;jump to i2crderr alays occurs by jc, so CF=1
+       popf
+i2crderr:
        pop dx
        ret
+
 read_i2c_device endp
 
 if debug
