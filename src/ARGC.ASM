@@ -53,7 +53,6 @@ argv    proc    near
         push    di
         or      ax,ax   ;is is 0th argument?
         jz      argv8   ;yes - go to geting program name
-        xor     ah,ah   ;arg counter setup
 
 argv1:  mov     cx,-1   ;set flag to 'outside the argument'
 argv2:  inc     bx      ;next cmdline symbol
@@ -66,10 +65,9 @@ argv2:  inc     bx      ;next cmdline symbol
 
                         ;processing all other symbols
         jcxz    argv2   ;continue scan if inside the argument
-        inc     ah      ;otherwise update argument count
-        cmp     ah,al   ;is it desirable argument?
-        je      argv4   ;yes - count its length
-        inc     cx      ;no - set flag to 'inside argument'...
+        dec     ax      ;otherwise update argument count
+        jz      argv4   ;count length if it was desirable argument
+        inc     cx      ;else set flag to 'inside argument'...
         jmp     argv2   ;...and continue scan
 
 argv4:                  ;determine argument length
