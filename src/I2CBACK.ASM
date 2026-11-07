@@ -11,7 +11,7 @@
 ;transistor tied to port B bit 2 (and inversion must be used!)
 ;both inverted and non-inverted connection supported by this code
 
-;L.Yadrennikov jun, aug 2025, may, sep, oct 2026
+;L.Yadrennikov jun, aug 2025, may, sep-nov 2026
 
 public i2cwr
 public i2crd
@@ -64,12 +64,14 @@ i2c_stopreset proc near
 ;   CY set   - Just stop
 ;On return:
 ;   CY set - no I2C harness
+;   inversion_mask kept in memory
        push ax
        push cx
        push dx
        mov dx,port_b
        in al,dx
        jc stopgen
+       push ax           ;keep original port_b value
        SCL_LO
        or al,sda_out_mask
                          ;do 9scl-and-stop twice with sda=1 and then with sda=0
@@ -100,6 +102,7 @@ scloop:
        sbb al,al                 ;AL=FFh means inverted harness
        and al,sda_out_mask       ;now 'AL XOR databit' ready for inv/noninv
        mov inversion_mask,al     ;keep it in memory
+       pop ax            ;stack balance
        in al,dx          ;port_B
 stopgen:
        I2C_STOP
@@ -110,6 +113,8 @@ stresexit:
        ret
 
 no_harness:
+       pop ax            ;recall original port_b value
+       out dx,al         ;restore it
        stc
        jmp short stresexit
 i2c_stopreset endp
