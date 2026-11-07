@@ -1,3 +1,8 @@
+                                ;ARCG, ARGV in Assebmly implementation 
+                                ;Ray Duncan, Advanced MS-DOS Programming,1998 
+                                ;manually retyped by L.Yadrennikov, 2021 
+                                ;implemented optimizations suggested by ChatGPT 5.6 and 6, 2026 
+                                 
                              C  include dump.inc 
  = 000D                      C  cr       equ  0dh 
  = 000A                      C  lf       equ  0ah 
@@ -16,114 +21,114 @@
                                 assume cs:_TEXT 
  0000                           _TEXT segment byte public 'CODE' 
                                  
-                                public	argc 
+                                public argc 
                                 public argv 
                                  
  0000                           argc   proc    near 
                                 ;command line argument count 
-                                ;on call, ES:BX	points to command line 
+                                ;on call, ES:BX points to command line 
                                 ;on return, AX = arguments count 
                                  
  0000  53                              push bx 
  0001  51                              push cx 
  0002  B8 0001                         mov  ax,1      ;reset arguments count 
                                  
- 0005  B9 FFFF                  argc1: mov  cx,-1     ;set flag=external argument (CX=0	internal, FF-ext) 
+ 0005  B9 FFFF                  argc1: mov  cx,-1     ;set flag=external argument (CX=0 internal, FF-ext) 
                                  
- 0008  43                       argc2: inc  bx	      ;point to	the next symbol 
- 0009  26: 80 3F 0D                    cmp  byte ptr es:[bx],cr	;why not a line	command????? 
- 000D  74 12                           je   argc3     ;stop if it's the	CR code 
+ 0008  43                       argc2: inc  bx        ;point to the next symbol 
+ 0009  26: 80 3F 0D                    cmp  byte ptr es:[bx],cr ;why not a line command????? 
+ 000D  74 12                           je   argc3     ;stop if it's the CR code 
  000F  26: 80 3F 20                    cmp  byte ptr es:[bx],blank 
- 0013  74 F0                           je   argc1     ;external	argument if SPACEBAR code 
+ 0013  74 F0                           je   argc1     ;external argument if SPACEBAR code 
  0015  26: 80 3F 09                    cmp  byte ptr es:[bx],tab 
- 0019  74 EA                           je   argc1     ;external	argument if TAB 
+ 0019  74 EA                           je   argc1     ;external argument if TAB 
                                  
-                                		      ;processing if not (SPACEBAR or TAB) 
+                                                      ;processing if not (SPACEBAR or TAB) 
  001B  E3 EB                           jcxz argc2     ;jump back if it's an internal argument 
                                  
- 001D  40                              inc  ax	      ;inc if argument not found 
- 001E  41                              inc  cx	      ;set flag	to 'internal argument'... 
+ 001D  40                              inc  ax        ;inc if argument not found 
+ 001E  41                              inc  cx        ;set flag to 'internal argument'... 
  001F  EB E7                           jmp  argc2     ;...and proceed the next symbol 
                                  
  0021  59                       argc3: pop  cx 
- 0022  5B                              pop  bx	      ;restore used registers 
- 0023  C3                              ret	      ;return AX=arguments count 
+ 0022  5B                              pop  bx        ;restore used registers 
+ 0023  C3                              ret            ;return AX=arguments count 
                                  
                                 argc   endp 
                                  
- 0024                           argv	proc	near 
-                                			;get address and length of command line attributes 
-                                			;on call, ES:BX = command line 
-                                			;	  AX = argument number 
-                                			;on return, ES:BX = address 
-                                			;	    AX = length 
- 0024  51                       	push	cx 
- 0025  57                       	push	di 
- 0026  0B C0                    	or	ax,ax	;is is 0th argument? 
- 0028  74 41                    	jz	argv8	;yes - go to geting program name 
- 002A  32 E4                    	xor	ah,ah	;arg counter setup 
+ 0024                           argv    proc    near 
+                                                        ;get address and length of command line attributes 
+                                                        ;on call, ES:BX = command line 
+                                                        ;         AX = argument number 
+                                                        ;on return, ES:BX = address 
+                                                        ;           AX = length 
+ 0024  51                               push    cx 
+ 0025  57                               push    di 
+ 0026  0B C0                            or      ax,ax   ;is is 0th argument? 
+ 0028  74 41                            jz      argv8   ;yes - go to geting program name 
+ 002A  32 E4                            xor     ah,ah   ;arg counter setup 
                                  
- 002C  B9 FFFF                  argv1:	mov	cx,-1	;set flag to 'outside the argument' 
- 002F  43                       argv2:	inc	bx	;next cmdline symbol 
- 0030  26: 80 3F 0D             	cmp	byte ptr es:[bx],cr 
- 0034  74 31                    	je	argv7	;termnate if cr found 
- 0036  26: 80 3F 20             	cmp	byte ptr es:[bx],blank 
- 003A  74 F0                    	je	argv1	;set to outside the argument if space 
- 003C  26: 80 3F 09             	cmp	byte ptr es:[bx],tab 
- 0040  74 EA                    	je	argv1	;set to outside the argument if tab 
+ 002C  B9 FFFF                  argv1:  mov     cx,-1   ;set flag to 'outside the argument' 
+ 002F  43                       argv2:  inc     bx      ;next cmdline symbol 
+ 0030  26: 80 3F 0D                     cmp     byte ptr es:[bx],cr 
+ 0034  74 31                            je      argv7   ;termnate if cr found 
+ 0036  26: 80 3F 20                     cmp     byte ptr es:[bx],blank 
+ 003A  74 F0                            je      argv1   ;set to outside the argument if space 
+ 003C  26: 80 3F 09                     cmp     byte ptr es:[bx],tab 
+ 0040  74 EA                            je      argv1   ;set to outside the argument if tab 
                                  
-                                			;processing all other symbols 
- 0042  E3 EB                    	jcxz	argv2	;continue scan if inside the argument 
- 0044  FE C4                    	inc	ah	;otherwise update argument count 
- 0046  3A E0                    	cmp	ah,al	;is it desirable argument? 
- 0048  74 03                    	je	argv4	;yes - count its length 
- 004A  41                       	inc	cx	;no - set flag to 'inside argument'... 
- 004B  EB E2                    	jmp	argv2	;...and continue scan 
+                                                        ;processing all other symbols 
+ 0042  E3 EB                            jcxz    argv2   ;continue scan if inside the argument 
+ 0044  FE C4                            inc     ah      ;otherwise update argument count 
+ 0046  3A E0                            cmp     ah,al   ;is it desirable argument? 
+ 0048  74 03                            je      argv4   ;yes - count its length 
+ 004A  41                               inc     cx      ;no - set flag to 'inside argument'... 
+ 004B  EB E2                            jmp     argv2   ;...and continue scan 
                                  
- 004D                           argv4:			;determine argument length 
- 004D  8B C3                    	mov	ax,bx	;save start address 
- 004F  43                       argv5:	inc	bx	;next symbol 
- 0050  26: 80 3F 0D             	cmp	byte ptr es:[bx],cr 
- 0054  74 0C                    	je	argv6	;end reached if we encounter with cr... 
- 0056  26: 80 3F 20             	cmp	byte ptr es:[bx],blank 
- 005A  74 06                    	je	argv6	;...or space... 
- 005C  26: 80 3F 09             	cmp	byte ptr es:[bx],tab 
- 0060  75 ED                    	jne	argv5	;...or tab, else - continue search 
+ 004D                           argv4:                  ;determine argument length 
+ 004D  8B C3                            mov     ax,bx   ;save start address 
+ 004F  43                       argv5:  inc     bx      ;next symbol 
+ 0050  26: 80 3F 0D                     cmp     byte ptr es:[bx],cr 
+ 0054  74 0C                            je      argv6   ;end reached if we encounter with cr... 
+ 0056  26: 80 3F 20                     cmp     byte ptr es:[bx],blank 
+ 005A  74 06                            je      argv6   ;...or space... 
+ 005C  26: 80 3F 09                     cmp     byte ptr es:[bx],tab 
+ 0060  75 ED                            jne     argv5   ;...or tab, else - continue search 
                                  
- 0062  93                       argv6:	xchg	bx,ax	;set ES:BX to the beginning of arg 
- 0063  2B C3                    	sub	ax,bx	;and AX=length of arg 
- 0065  EB 2A                    	jmp	short argvx	;common exit 
+ 0062  93                       argv6:  xchg    bx,ax   ;set ES:BX to the beginning of arg 
+ 0063  2B C3                            sub     ax,bx   ;and AX=length of arg 
+ 0065  EB 2A                            jmp     short argvx     ;common exit 
                                  
- 0067  33 C0                    argv7:	xor	ax,ax	;AX=0 if argument not found 
- 0069  EB 26                    	jmp	short argvx	;common exit 
+ 0067  33 C0                    argv7:  xor     ax,ax   ;AX=0 if argument not found 
+ 0069  EB 26                            jmp     short argvx     ;common exit 
                                  
- 006B                           argv8:			;special case if argument=0 on call 
- 006B  B8 3000                  	mov	ax,3000h;is it dos v3 or higher? 
- 006E  CD 21                    	int	21h	;(al will be 0 if dos v1) 
- 0070  3C 03                    	cmp	al,3 
- 0072  72 F3                    	jb	argv7	;exit w AX=0 if dos <3.0 
- 0074  26: 8E 06 002C           	mov	es,es:[2ch]	;get environment from PSP 
- 0079  33 FF                    	xor	di,di 
- 007B  32 C0                    	xor	al,al 
- 007D  FC                       	cld 
- 007E  F2/ AE                   argv9:	repne scasb	;find prog.name as first '00' after all env. variables 
- 0080  AE                       	scasb		;should be TWO zeroes (no scasw as can be odd addr) 
- 0081  75 FB                    	jne	argv9	;continue loop if only one zero 
- 0083  47                       	inc	di 
- 0084  47                               inc	di      ;skip word count 
- 0085  8B DF                    	mov	bx,di	;save program name address 
- 0087  B9 FFFF                  	mov	cx,-1	;now determine progam name length... 
- 008A  F2/ AE                   	repne scasb	;...by searcing the next zero byte 
- 008C  F7 D1                    	not	cx	;get lengtn (rep counts downwards) 
- 008E  49                       	dec	cx 
- 008F  8B C1                    	mov	ax,cx	;return length in ax 
+ 006B                           argv8:                  ;special case if argument=0 on call 
+ 006B  B8 3000                          mov     ax,3000h;is it dos v3 or higher? 
+ 006E  CD 21                            int     21h     ;(al will be 0 if dos v1) 
+ 0070  3C 03                            cmp     al,3 
+ 0072  72 F3                            jb      argv7   ;exit w AX=0 if dos <3.0 
+ 0074  26: 8E 06 002C                   mov     es,es:[2ch]     ;get environment from PSP 
+ 0079  33 FF                            xor     di,di 
+ 007B  32 C0                            xor     al,al 
+ 007D  FC                               cld 
+ 007E  F2/ AE                   argv9:  repne scasb     ;find prog.name as first '00' after all env. variables 
+ 0080  AE                               scasb           ;should be TWO zeroes (no scasw as can be odd addr) 
+ 0081  75 FB                            jne     argv9   ;continue loop if only one zero 
+ 0083  47                               inc     di 
+ 0084  47                               inc     di      ;skip word count 
+ 0085  8B DF                            mov     bx,di   ;save program name address 
+ 0087  B9 FFFF                          mov     cx,-1   ;now determine progam name length... 
+ 008A  F2/ AE                           repne scasb     ;...by searcing the next zero byte 
+ 008C  F7 D1                            not     cx      ;get lengtn (rep counts downwards) 
+ 008E  49                               dec     cx 
+ 008F  8B C1                            mov     ax,cx   ;return length in ax 
                                  
- 0091                           argvx:			;common exit 
- 0091  5F                       	pop	di 
- 0092  59                       	pop	cx 
- 0093  C3                       	ret 
+ 0091                           argvx:                  ;common exit 
+ 0091  5F                               pop     di 
+ 0092  59                               pop     cx 
+ 0093  C3                               ret 
                                  
-                                argv	endp 
+                                argv    endp 
  0094                           _TEXT ends 
                                  
                                 end 
@@ -167,8 +172,8 @@ STDOUT . . . . . . . . . . . . .  	Number	0001
 TAB  . . . . . . . . . . . . . .  	Number	0009	
 
 
-    128 Source  Lines
-    129 Total   Lines
+    133 Source  Lines
+    134 Total   Lines
      46 Symbols
 
       0 Warning Errors
