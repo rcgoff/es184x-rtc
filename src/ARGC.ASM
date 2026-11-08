@@ -95,6 +95,7 @@ argv8:                  ;special case if argument=0 on call
         mov     es,es:[2ch]     ;get environment from PSP
         xor     di,di
         xor     al,al
+        mov     cx,-1
         cld
 argv9:  repne scasb     ;find prog.name as first '00' after all env. variables
         scasb           ;should be TWO zeroes (no scasw as can be odd addr)

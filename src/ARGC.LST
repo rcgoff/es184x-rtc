@@ -95,10 +95,10 @@
                                  
  005D  93                       argv6:  xchg    bx,ax   ;set ES:BX to the beginning of arg 
  005E  2B C3                            sub     ax,bx   ;and AX=length of arg 
- 0060  EB 2A                            jmp     short argvx     ;common exit 
+ 0060  EB 2D                            jmp     short argvx     ;common exit 
                                  
  0062  33 C0                    argv7:  xor     ax,ax   ;AX=0 if argument not found 
- 0064  EB 26                            jmp     short argvx     ;common exit 
+ 0064  EB 29                            jmp     short argvx     ;common exit 
                                  
  0066                           argv8:                  ;special case if argument=0 on call 
  0066  B8 3000                          mov     ax,3000h;is it dos v3 or higher? 
@@ -108,33 +108,34 @@
  006F  26: 8E 06 002C                   mov     es,es:[2ch]     ;get environment from PSP 
  0074  33 FF                            xor     di,di 
  0076  32 C0                            xor     al,al 
- 0078  FC                               cld 
- 0079  F2/ AE                   argv9:  repne scasb     ;find prog.name as first '00' after all env. variables 
- 007B  AE                               scasb           ;should be TWO zeroes (no scasw as can be odd addr) 
- 007C  75 FB                            jne     argv9   ;continue loop if only one zero 
- 007E  47                               inc     di 
- 007F  47                               inc     di      ;skip word count 
- 0080  8B DF                            mov     bx,di   ;save program name address 
- 0082  B9 FFFF                          mov     cx,-1   ;now determine progam name length... 
- 0085  F2/ AE                           repne scasb     ;...by searcing the next zero byte 
- 0087  F7 D1                            not     cx      ;get lengtn (rep counts downwards) 
- 0089  49                               dec     cx 
- 008A  8B C1                            mov     ax,cx   ;return length in ax 
+ 0078  B9 FFFF                          mov     cx,-1 
+ 007B  FC                               cld 
+ 007C  F2/ AE                   argv9:  repne scasb     ;find prog.name as first '00' after all env. variables 
+ 007E  AE                               scasb           ;should be TWO zeroes (no scasw as can be odd addr) 
+ 007F  75 FB                            jne     argv9   ;continue loop if only one zero 
+ 0081  47                               inc     di 
+ 0082  47                               inc     di      ;skip word count 
+ 0083  8B DF                            mov     bx,di   ;save program name address 
+ 0085  B9 FFFF                          mov     cx,-1   ;now determine progam name length... 
+ 0088  F2/ AE                           repne scasb     ;...by searcing the next zero byte 
+ 008A  F7 D1                            not     cx      ;get lengtn (rep counts downwards) 
+ 008C  49                               dec     cx 
+ 008D  8B C1                            mov     ax,cx   ;return length in ax 
                                  
- 008C                           argvx:                  ;common exit 
- 008C  5F                               pop     di 
- 008D  59                               pop     cx 
- 008E  C3                               ret 
+ 008F                           argvx:                  ;common exit 
+ 008F  5F                               pop     di 
+ 0090  59                               pop     cx 
+ 0091  C3                               ret 
                                  
                                 argv    endp 
- 008F                           _TEXT ends 
+ 0092                           _TEXT ends 
                                  
                                 end 
 Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-_TEXT  . . . . . . . . . . . . .  	008F	BYTE	PUBLIC	'CODE'
+_TEXT  . . . . . . . . . . . . .  	0092	BYTE	PUBLIC	'CODE'
 
 Symbols:            
 
@@ -144,7 +145,7 @@ ARGC . . . . . . . . . . . . . .  	N PROC	0000	_TEXT	Global	Length = 0024
 ARGC1  . . . . . . . . . . . . .  	L NEAR	0005	_TEXT
 ARGC2  . . . . . . . . . . . . .  	L NEAR	0008	_TEXT
 ARGC3  . . . . . . . . . . . . .  	L NEAR	0021	_TEXT
-ARGV . . . . . . . . . . . . . .  	N PROC	0024	_TEXT	Global	Length = 006B
+ARGV . . . . . . . . . . . . . .  	N PROC	0024	_TEXT	Global	Length = 006E
 ARGV1  . . . . . . . . . . . . .  	L NEAR	002A	_TEXT
 ARGV2  . . . . . . . . . . . . .  	L NEAR	002D	_TEXT
 ARGV4  . . . . . . . . . . . . .  	L NEAR	0048	_TEXT
@@ -152,8 +153,8 @@ ARGV5  . . . . . . . . . . . . .  	L NEAR	004A	_TEXT
 ARGV6  . . . . . . . . . . . . .  	L NEAR	005D	_TEXT
 ARGV7  . . . . . . . . . . . . .  	L NEAR	0062	_TEXT
 ARGV8  . . . . . . . . . . . . .  	L NEAR	0066	_TEXT
-ARGV9  . . . . . . . . . . . . .  	L NEAR	0079	_TEXT
-ARGVX  . . . . . . . . . . . . .  	L NEAR	008C	_TEXT
+ARGV9  . . . . . . . . . . . . .  	L NEAR	007C	_TEXT
+ARGVX  . . . . . . . . . . . . .  	L NEAR	008F	_TEXT
 
 BLANK  . . . . . . . . . . . . .  	Number	0020	
 BLKSIZE  . . . . . . . . . . . .  	Number	0010	
@@ -170,8 +171,8 @@ STDOUT . . . . . . . . . . . . .  	Number	0001
 TAB  . . . . . . . . . . . . . .  	Number	0009	
 
 
-    131 Source  Lines
-    132 Total   Lines
+    132 Source  Lines
+    133 Total   Lines
      46 Symbols
 
       0 Warning Errors
